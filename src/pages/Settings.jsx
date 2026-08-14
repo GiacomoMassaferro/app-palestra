@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom'
 
 export default function Settings() {
     const navigate = useNavigate()
+    
     const [formData, setFormData] = useState({
         obiettivo: '',
         livello: '',
@@ -19,6 +20,10 @@ export default function Settings() {
         startDate: '',
         endDate: ''
     })
+    const [dietaFile, setDietaFile] = useState(null)
+    const [schedaFile, setSchedaFile] = useState(null)
+    const [dietaFileName, setDietaFileName] = useState('')
+    const [schedaFileName, setSchedaFileName] = useState('')
     const [loading, setLoading] = useState(false)
     const [error, setError] = useState('')
     const [success, setSuccess] = useState('')
@@ -29,6 +34,70 @@ export default function Settings() {
     const obiettivi = ['Dimagrimento', 'Massa Muscolare', 'Mantenimento', 'Forza', 'Resistenza']
     const livelli = ['Principiante', 'Intermedio', 'Avanzato']
     const preferenze = ['Onnivoro', 'Vegetariano', 'Vegano', 'Senza Glutine', 'Senza Lattosio']
+
+    // Funzione per validare un file JSON
+    const validateJsonFile = (file, setFile, setFileName) => {
+        if (!file) return false
+        
+        const validExtensions = ['.json']
+        const fileName = file.name.toLowerCase()
+        const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext))
+        
+        if (!isValidExtension) {
+            setError('Il file deve essere in formato JSON (.json)')
+            return false
+        }
+        
+        const reader = new FileReader()
+        reader.onload = (e) => {
+            try {
+                const content = e.target.result
+                JSON.parse(content)
+                setFile(content)
+                setFileName(file.name)
+                setError('')
+            } catch {
+                setError('Il file non è un JSON valido. Correggi il formato e riprova.')
+                setFile(null)
+                setFileName('')
+            }
+        }
+        reader.onerror = () => {
+            setError('Errore nella lettura del file. Riprova.')
+            setFile(null)
+            setFileName('')
+        }
+        reader.readAsText(file)
+        return true
+    }
+
+    // Gestione cambiamento file dieta
+    const handleDietaFileChange = (e) => {
+        const file = e.target.files[0]
+        if (file) {
+            validateJsonFile(file, setDietaFile, setDietaFileName)
+        }
+    }
+
+    // Gestione cambiamento file scheda
+    const handleSchedaFileChange = (e) => {
+        const file = e.target.files[0]
+        if (file) {
+            validateJsonFile(file, setSchedaFile, setSchedaFileName)
+        }
+    }
+
+    // Rimuovi file dieta
+    const removeDietaFile = () => {
+        setDietaFile(null)
+        setDietaFileName('')
+    }
+
+    // Rimuovi file scheda
+    const removeSchedaFile = () => {
+        setSchedaFile(null)
+        setSchedaFileName('')
+    }
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target
@@ -62,12 +131,32 @@ export default function Settings() {
     useEffect(() => {
         const savedData = localStorage.getItem('palestra_data')
         const savedVacation = localStorage.getItem('palestra_vacation')
+        const savedDietaFile = localStorage.getItem('palestra_dieta_file')
+        const savedSchedaFile = localStorage.getItem('palestra_scheda_file')
         
         if (savedData) {
             setFormData(JSON.parse(savedData))
         }
         if (savedVacation) {
             setVacationData(JSON.parse(savedVacation))
+        }
+        if (savedDietaFile) {
+            try {
+                JSON.parse(savedDietaFile)
+                setDietaFile(savedDietaFile)
+                setDietaFileName('dieta.json')
+            } catch (e) {
+                console.error('Errore parsing dieta file:', e)
+            }
+        }
+        if (savedSchedaFile) {
+            try {
+                JSON.parse(savedSchedaFile)
+                setSchedaFile(savedSchedaFile)
+                setSchedaFileName('scheda.json')
+            } catch (e) {
+                console.error('Errore parsing scheda file:', e)
+            }
         }
     }, [])
 
@@ -171,9 +260,19 @@ export default function Settings() {
         setSuccess('')
 
         try {
+            // Salva configurazione base
             localStorage.setItem('palestra_data', JSON.stringify(formData))
             localStorage.setItem('palestra_vacation', JSON.stringify(vacationData))
-            setSuccess('Configurazione salvata con successo!')
+            
+            // Salva file dieta e scheda se presenti
+            if (dietaFile) {
+                localStorage.setItem('palestra_dieta_file', dietaFile)
+            }
+            if (schedaFile) {
+                localStorage.setItem('palestra_scheda_file', schedaFile)
+            }
+            
+            setSuccess('Configurazione e file salvati con successo!')
             
             setTimeout(() => {
                 navigate('/')
@@ -541,6 +640,127 @@ export default function Settings() {
                             <div className="alert alert-info">
                                 <i className="bi bi-check-circle me-2"></i>
                                 Piano vacanza generato! Gli esercizi consigliati sono facoltativi. Puoi segnarli come eseguiti nel calendario.
+                            </div>
+                        )}
+                    </div>
+                </div>
+
+                {/* Caricamento File Dieta e Scheda */}
+                <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-header bg-light">
+                        <h5 className="mb-0 d-flex align-items-center gap-2">
+                            <i className="bi bi-file-earmark-arrow-up"></i> Carica File Personali
+                        </h5>
+                    </div>
+                    <div className="card-body">
+                        <p className="text-muted small mb-4">
+                            Carica i tuoi file JSON per dieta e scheda di allenamento. L'IA userà questi file come base per fornirti suggerimenti personalizzati senza generare piani da zero.
+                        </p>
+                        
+                        <div className="row g-4">
+                            {/* File Dieta */}
+                            <div className="col-md-6">
+                                <div className="card bg-light border-0 h-100">
+                                    <div className="card-body">
+                                        <h6 className="d-flex align-items-center gap-2 mb-3">
+                                            <i className="bi bi-file-earmark-text text-success"></i> File Dieta
+                                        </h6>
+                                        <p className="text-muted small mb-3">
+                                            Carica un file JSON con la tua dieta personale (formato: giorni {'>'} pasti {'>'} dettagli)
+                                        </p>
+                                        
+                                        {!dietaFile ? (
+                                            <div className="d-grid gap-2">
+                                                <input
+                                                    type="file"
+                                                    id="dietaFileInput"
+                                                    accept=".json"
+                                                    onChange={handleDietaFileChange}
+                                                    className="d-none"
+                                                />
+                                                <label 
+                                                    htmlFor="dietaFileInput"
+                                                    className="btn btn-outline-success d-flex align-items-center justify-content-center gap-2 py-3"
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <i className="bi bi-upload"></i>
+                                                    Seleziona File Dieta
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <div className="alert alert-success mb-0">
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <i className="bi bi-check-circle me-2"></i>
+                                                        <strong>File caricato:</strong> {dietaFileName}
+                                                    </div>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        onClick={removeDietaFile}
+                                                    >
+                                                        <i className="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            {/* File Scheda Allenamento */}
+                            <div className="col-md-6">
+                                <div className="card bg-light border-0 h-100">
+                                    <div className="card-body">
+                                        <h6 className="d-flex align-items-center gap-2 mb-3">
+                                            <i className="bi bi-file-earmark-bar-graph text-primary"></i> File Scheda Allenamento
+                                        </h6>
+                                        <p className="text-muted small mb-3">
+                                            Carica un file JSON con la tua scheda di allenamento (formato: giorni {'>'} esercizi {'>'} dettagli)
+                                        </p>
+                                        
+                                        {!schedaFile ? (
+                                            <div className="d-grid gap-2">
+                                                <input
+                                                    type="file"
+                                                    id="schedaFileInput"
+                                                    accept=".json"
+                                                    onChange={handleSchedaFileChange}
+                                                    className="d-none"
+                                                />
+                                                <label 
+                                                    htmlFor="schedaFileInput"
+                                                    className="btn btn-outline-primary d-flex align-items-center justify-content-center gap-2 py-3"
+                                                    style={{ cursor: 'pointer' }}
+                                                >
+                                                    <i className="bi bi-upload"></i>
+                                                    Seleziona File Scheda
+                                                </label>
+                                            </div>
+                                        ) : (
+                                            <div className="alert alert-primary mb-0">
+                                                <div className="d-flex justify-content-between align-items-center">
+                                                    <div>
+                                                        <i className="bi bi-check-circle me-2"></i>
+                                                        <strong>File caricato:</strong> {schedaFileName}
+                                                    </div>
+                                                    <button
+                                                        className="btn btn-sm btn-outline-danger"
+                                                        onClick={removeSchedaFile}
+                                                    >
+                                                        <i className="bi bi-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        {(dietaFile || schedaFile) && (
+                            <div className="alert alert-info mt-3 mb-0">
+                                <i className="bi bi-info-circle me-2"></i>
+                                L'IA userà questi file come base per i suggerimenti. Non genererà piani da zero.
                             </div>
                         )}
                     </div>

@@ -122,12 +122,20 @@ function safeJsonParse(str, fallback = null) {
 
 const PROMPT_TEMPLATE = `
 Sei un esperto di fitness e nutrizione. Basandoti su questi dati:
+- Utente: {userInfo}
 - Obiettivo: {obiettivo}
 - Livello: {livello}
 - Preferenze alimentari: {preferenzeAlimentari}
 - Giorni di allenamento: {workoutDays}
 - Durata allenamento: {durataAllenamento} minuti
 - Orari pasti: {orariPasti}
+
+IMPORTANTE: NON generare piani da zero. L'utente ha già una dieta e una scheda di allenamento caricate.
+Il tuo ruolo è SOLO quello di:
+1. Fornire suggerimenti basati sui dati esistenti
+2. Proporre modifiche momentanee (ad esempio per ferie, malattia, ecc.)
+3. Adattare i piani esistenti alle nuove situazioni
+4. Fornire consigli generali su allenamento e alimentazione
 
 Genera UNICAMENTE un oggetto JSON valido, SENZA:
 - Testate di codice
@@ -143,7 +151,8 @@ SOLO il JSON, nient'altro.
         "{nomePasto}": {
           "ora": "HH:MM",
           "cibo": "descrizione",
-          "calorie": "numero"
+          "calorie": "numero",
+          "grammi": "quantita"
         }
       }
     }
@@ -164,6 +173,45 @@ SOLO il JSON, nient'altro.
 `
 
 /**
+ * Crea il contesto utente con dati personali
+ */
+function getUserContext() {
+    try {
+        const user = localStorage.getItem('palestra_user')
+        if (user) {
+            const userData = JSON.parse(user)
+            return {
+                nome: userData.nome || '',
+                cognome: userData.cognome || '',
+                eta: userData.eta || userData.annoNascita ? new Date().getFullYear() - userData.annoNascita : 0,
+                altezza: userData.altezza || 0,
+                peso: userData.peso || 0,
+                sesso: userData.sesso || 'non specificato'
+            }
+        }
+    } catch (e) {
+        console.warn('Errore caricamento user context:', e)
+    }
+    return { nome: '', cognome: '', eta: 0, altezza: 0, peso: 0, sesso: 'non specificato' }
+}
+
+/**
+ * Crea la stringa con i dati personali per l'IA
+ */
+function getUserInfoString() {
+    const user = getUserContext()
+    const parts = []
+    
+    if (user.nome) parts.push(`nome: ${user.nome}`)
+    if (user.cognome) parts.push(`cognome: ${user.cognome}`)
+    if (user.eta) parts.push(`età: ${user.eta} anni`)
+    if (user.altezza) parts.push(`altezza: ${user.altezza} cm`)
+    if (user.peso) parts.push(`peso: ${user.peso} kg`)
+    
+    return parts.length > 0 ? parts.join(', ') : 'Dati utente non disponibili'
+}
+
+/**
  * Genera suggerimenti personalizzati chiamando l'API Mistral
  */
 export async function generateSuggestions(data) {
@@ -176,6 +224,8 @@ export async function generateSuggestions(data) {
         }
     }
 
+    const userInfo = getUserInfoString()
+
     const prompt = PROMPT_TEMPLATE
         .replace('{obiettivo}', data.obiettivo || 'Mantenimento')
         .replace('{livello}', data.livello || 'Intermedio')
@@ -183,6 +233,7 @@ export async function generateSuggestions(data) {
         .replace('{workoutDays}', data.workoutDays?.join(', ') || 'Lunedi, Mercoledi, Venerdi')
         .replace('{durataAllenamento}', data.durataAllenamento || '60')
         .replace('{orariPasti}', JSON.stringify(data.orariPasti || {}))
+        .replace('{userInfo}', userInfo)
 
     const requestBody = {
         model: 'mistral-tiny',
@@ -237,9 +288,19 @@ export function loadSuggestions() {
 }
 
 const CHAT_PROMPT_TEMPLATE = `
-Sei un assistente AI esperto in fitness e nutrizione. L'utente ha il seguente piano:
+Sei un assistente AI esperto in fitness e nutrizione.
+
+Dati utente: {userInfo}
+
 Piano corrente: {context}
-L utente ti chiede: "{message}"
+
+L'utente ti chiede: "{message}"
+
+IMPORTANTE:
+- NON generare piani da zero. L'utente ha già dieta e scheda caricate.
+- Fornisci SOLO suggerimenti, modifiche momentanee e adattamenti.
+- Se l'utente chiede consigli generali, forniscili basandoti sui suoi dati personali (eta, altezza, peso).
+
 Analizza la richiesta e fornisci suggerimenti in formato JSON:
 {
   "risposta": "testo risposta",
@@ -459,9 +520,11 @@ export async function chatWithMistral(message, context) {
     }
 
     // Chat normale
+    const userInfo = getUserInfoString()
     const prompt = CHAT_PROMPT_TEMPLATE
         .replace('{message}', message)
         .replace('{context}', ctxStr)
+        .replace('{userInfo}', userInfo)
 
     const requestBody = {
         model: 'mistral-tiny',

@@ -254,6 +254,43 @@ src/
 - [x] Verifica OXLint: 0 warnings, 0 errors
 - [x] Verifica build: success
 
+## 2026-01-19
+- [x] **Creato sistema login/registrazione** in `pages/Login.jsx`:
+  - Form con nome, cognome, email, anno di nascita, altezza, peso, password
+  - Validazione form completa
+  - Salvataggio dati utente in localStorage (`palestra_user`)
+  - Calcolo automatico eta dall'anno di nascita
+- [x] **Creato AuthContext** in `contexts/AuthContext.jsx`:
+  - Gestione stato autenticazione
+  - Funzioni login, logout, updateUser
+  - Caricamento utente da localStorage all'avvio
+  - Provider per avvolgere l'app
+- [x] **Aggiornato App.jsx**:
+  - Aggiunto AuthProvider
+  - Creata componente ProtectedRoute
+  - Aggiunta route `/login`
+  - Protezione route principali
+- [x] **Aggiornato MainLayout.jsx**:
+  - Aggiunto dropdown utente con info personali (nome, eta, altezza, peso)
+  - Pulsante logout
+- [x] **Aggiunta sezione caricamento file in Settings.jsx**:
+  - Caricamento file JSON per dieta personale
+  - Caricamento file JSON per scheda allenamento
+  - Validazione formato JSON
+  - Salvataggio in localStorage (`palestra_dieta_file`, `palestra_scheda_file`)
+  - Caricamento automatico all'avvio
+- [x] **Aggiornato mistral.js**:
+  - Aggiunte funzioni getUserContext() e getUserInfoString()
+  - Inclusi dati personali (nome, cognome, eta, altezza, peso) in tutti i prompt
+  - Aggiornati PROMPT_TEMPLATE e CHAT_PROMPT_TEMPLATE
+  - Istruzioni per NON generare piani da zero ma solo modifiche momentanee
+- [x] **Aggiornato ChatPopup.jsx**:
+  - Caricamento dati utente, dietaFile e schedaFile nel contesto
+  - Passaggio dati completi all'AI
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success
+- [x] Commit e push: "feat: Aggiunto login, dati personali e caricamento file dieta/scheda"
+
 ---
 
 ### Milestone 10: Calendario Mensile Completo

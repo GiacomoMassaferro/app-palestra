@@ -15,10 +15,16 @@ export default function ChatPopup() {
     useEffect(() => {
         const savedData = localStorage.getItem('palestra_data')
         const savedSuggestions = localStorage.getItem('palestra_suggestions')
+        const savedUser = localStorage.getItem('palestra_user')
+        const savedDietaFile = localStorage.getItem('palestra_dieta_file')
+        const savedSchedaFile = localStorage.getItem('palestra_scheda_file')
         
         const currentContext = {
             data: savedData ? JSON.parse(savedData) : null,
-            suggestions: savedSuggestions ? JSON.parse(savedSuggestions) : null
+            suggestions: savedSuggestions ? JSON.parse(savedSuggestions) : null,
+            user: savedUser ? JSON.parse(savedUser) : null,
+            dietaFile: savedDietaFile ? JSON.parse(savedDietaFile) : null,
+            schedaFile: savedSchedaFile ? JSON.parse(savedSchedaFile) : null
         }
         setContext(currentContext)
     }, [])

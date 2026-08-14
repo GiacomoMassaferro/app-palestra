@@ -93,7 +93,7 @@ export default function Home() {
         const dateStr = date.toISOString().split('T')[0]
         
         for (const period of vacationData.vacationPeriods) {
-            if (dateStr >= period.startDate && dateStr <= period.endDate) {
+            if (period.startDate && period.endDate && dateStr >= period.startDate && dateStr <= period.endDate) {
                 return true
             }
         }
@@ -134,33 +134,34 @@ export default function Home() {
             const dateStr = date.toISOString().split('T')[0]
             
             // Verifica se c'e' allenamento per questo giorno
-            const hasWorkout = palestraData?.workoutDays?.includes(dayName) ||
-                              (palestraSuggestions?.routine?.[dayName]?.esercizi?.length > 0)
+            const routine = palestraSuggestions?.routine?.[dayName] || {}
+            const hasWorkout = (palestraData?.workoutDays || []).includes(dayName) ||
+                              (Array.isArray(routine.esercizi) && routine.esercizi.length > 0)
             
             // Raccolgo i pasti per questo giorno
             const meals = []
             if (palestraData?.orariPasti) {
-                Object.keys(palestraData.orariPasti).forEach(mealTime => {
-                    if (palestraData.orariPasti[mealTime]?.ora) {
+                Object.keys(palestraData.orariPasti || {}).forEach(mealTime => {
+                    if ((palestraData.orariPasti || {})[mealTime]?.ora) {
                         meals.push(mealTime)
                     }
                 })
             }
             if (palestraSuggestions?.dieta?.[dayName]?.pasti) {
-                Object.keys(palestraSuggestions.dieta[dayName].pasti).forEach(mealTime => {
+                Object.keys(palestraSuggestions.dieta[dayName].pasti || {}).forEach(mealTime => {
                     if (!meals.includes(mealTime)) {
                         meals.push(mealTime)
                     }
                 })
             }
             
-            const workoutName = palestraSuggestions?.routine?.[dayName]?.scheda || ''
+            const workoutName = routine.scheda || ''
             
             // Verifica se e' un giorno di ferie
-            const isVacation = isVacationDate(date, vacationData)
+            const isVacation = vacationData ? isVacationDate(date, vacationData) : false
             
             // Verifica se ci sono suggerimenti specifici per le ferie per questo giorno
-            const vacationSuggestion = vacationData?.vacationSuggestions?.[dateStr]
+            const vacationSuggestion = vacationData?.vacationSuggestions?.[dateStr] || null
             
             monthDays.push({
                 number: dayNum,
@@ -207,23 +208,24 @@ export default function Home() {
         const currentTime = currentHour * 60 + currentMinute
 
         // Verifica se oggi c'e' allenamento
-        const hasWorkoutToday = palestraData?.workoutDays?.includes(currentDayName) ||
-                                (palestraSuggestions?.routine?.[currentDayName]?.esercizi?.length > 0)
+        const routineToday = palestraSuggestions?.routine?.[currentDayName] || {}
+        const hasWorkoutToday = (palestraData?.workoutDays || []).includes(currentDayName) ||
+                                (Array.isArray(routineToday.esercizi) && routineToday.esercizi.length > 0)
 
         // Raccolgo tutti i pasti di oggi con orari
         const todayMeals = []
         
         // Da palestra_data
         if (palestraData?.orariPasti) {
-            Object.entries(palestraData.orariPasti).forEach(([mealName, mealData]) => {
-                if (mealData?.ora) {
-                    const [hours, minutes] = mealData.ora.split(':').map(Number)
+            Object.entries(palestraData.orariPasti || {}).forEach(([mealName, mealData]) => {
+                if (mealData && typeof mealData === 'object' && mealData.ora) {
+                    const [hours, minutes] = String(mealData.ora).split(':').map(Number)
                     const mealTime = hours * 60 + minutes
                     todayMeals.push({ 
                         name: mealName, 
                         time: mealTime, 
-                        ora: mealData.ora,
-                        cibo: mealData.cibo,
+                        ora: String(mealData.ora),
+                        cibo: mealData.cibo ? String(mealData.cibo) : '',
                         source: 'data' 
                     })
                 }
@@ -232,19 +234,19 @@ export default function Home() {
 
         // Da suggestions
         if (palestraSuggestions?.dieta?.[currentDayName]?.pasti) {
-            Object.entries(palestraSuggestions.dieta[currentDayName].pasti).forEach(([mealName, mealData]) => {
-                if (mealData?.ora) {
-                    const [hours, minutes] = mealData.ora.split(':').map(Number)
+            Object.entries(palestraSuggestions.dieta[currentDayName].pasti || {}).forEach(([mealName, mealData]) => {
+                if (mealData && typeof mealData === 'object' && mealData.ora) {
+                    const [hours, minutes] = String(mealData.ora).split(':').map(Number)
                     const mealTime = hours * 60 + minutes
                     // Evito duplicati
                     if (!todayMeals.some(m => m.name === mealName)) {
                         todayMeals.push({ 
                             name: mealName, 
                             time: mealTime, 
-                            ora: mealData.ora,
-                            cibo: mealData.cibo,
-                            calorie: mealData.calorie,
-                            grammi: mealData.grammi,
+                            ora: String(mealData.ora),
+                            cibo: mealData.cibo ? String(mealData.cibo) : '',
+                            calorie: mealData.calorie ? String(mealData.calorie) : null,
+                            grammi: mealData.grammi ? String(mealData.grammi) : null,
                             source: 'suggestions' 
                         })
                     }
@@ -268,22 +270,24 @@ export default function Home() {
         if (nextMeal) {
             return {
                 type: 'meal',
-                name: nextMeal.name,
-                ora: nextMeal.ora,
-                cibo: nextMeal.cibo,
-                calorie: nextMeal.calorie,
-                grammi: nextMeal.grammi
+                name: nextMeal.name || 'Pasto',
+                ora: nextMeal.ora || '',
+                cibo: nextMeal.cibo ? String(nextMeal.cibo) : 'N/D',
+                calorie: nextMeal.calorie ? String(nextMeal.calorie) : null,
+                grammi: nextMeal.grammi ? String(nextMeal.grammi) : null
             }
         }
 
         // Se non c'e' un pasto prossimo ma c'e' allenamento oggi
         if (hasWorkoutToday) {
+            const routine = palestraSuggestions?.routine?.[currentDayName] || {}
+            const calendario = palestraSuggestions?.calendario?.[currentDayName] || {}
             return {
                 type: 'workout',
-                name: palestraSuggestions?.routine?.[currentDayName]?.scheda || 'Allenamento',
+                name: routine.scheda || 'Allenamento',
                 time: '18:00',
-                esercizi: palestraSuggestions?.routine?.[currentDayName]?.esercizi || [],
-                consiglio: palestraSuggestions?.calendario?.[currentDayName]?.suggerimenti?.[0] || ''
+                esercizi: Array.isArray(routine.esercizi) ? routine.esercizi : [],
+                consiglio: (calendario.suggerimenti && Array.isArray(calendario.suggerimenti) && calendario.suggerimenti[0]) ? String(calendario.suggerimenti[0]) : ''
             }
         }
 
@@ -293,9 +297,36 @@ export default function Home() {
 
     // Funzione per gestire toggle attività
     const handleActivityToggle = (date, activityId, isDone) => {
-        // In futuro salvare in localStorage
-        console.log(`Attività ${activityId} per ${date} segnalata come ${isDone ? 'eseguita' : 'non eseguita'}`)
-        // TODO: Implementare salvataggio
+        // Trova l'attivita nell'array
+        const activityIndex = vacationActivities.findIndex(act => act.id === activityId || act.date === date)
+        
+        let updatedActivities
+        if (activityIndex !== -1) {
+            // Aggiorna l'attivita esistente
+            updatedActivities = vacationActivities.map((act, idx) => 
+                idx === activityIndex ? { ...act, done: isDone } : act
+            )
+        } else {
+            // Crea una nuova attivita (se non esiste)
+            const newActivity = {
+                id: activityId,
+                date: date,
+                description: activityId.split('-').slice(1).join('-'),
+                type: 'workout',
+                done: isDone,
+                createdAt: new Date().toISOString()
+            }
+            updatedActivities = [...vacationActivities, newActivity]
+        }
+        
+        setVacationActivities(updatedActivities)
+        
+        // Salva in localStorage
+        try {
+            localStorage.setItem('palestra_vacation_activities', JSON.stringify(updatedActivities))
+        } catch (e) {
+            console.error('Errore salvataggio attivita:', e)
+        }
     }
     
     // Funzione per aggiungere pasto mangiato
@@ -339,15 +370,25 @@ export default function Home() {
             palestraSuggestions = JSON.parse(savedSuggestions)
         }
         if (savedVacation) {
-            vacationData = JSON.parse(savedVacation)
+            try {
+                vacationData = JSON.parse(savedVacation)
+            } catch (e) {
+                console.error('Errore parsing vacation data:', e)
+                vacationData = { vacationPeriods: [], vacationSuggestions: {} }
+            }
         }
         if (savedActivities) {
-            activities = JSON.parse(savedActivities)
+            try {
+                activities = JSON.parse(savedActivities)
+            } catch (e) {
+                console.error('Errore parsing activities:', e)
+                activities = []
+            }
         }
 
         
-        setVacationData(vacationData)
-        setVacationActivities(activities)
+        setVacationData(vacationData || { vacationPeriods: [], vacationSuggestions: {} })
+        setVacationActivities(activities || [])
         
         // Genera calendario mensile
         const calendar = generateMonthlyCalendar(currentMonth, currentYear, palestraData, palestraSuggestions, vacationData)
@@ -369,7 +410,7 @@ export default function Home() {
     const handleDayClick = (day) => {
         // Naviga al giorno della settimana
         if (day && day.dayName) {
-            navigate(`/day/${day.dayName}`)
+            navigate(`/day/${day.dateStr || day.dayName}`)
         }
     }
 

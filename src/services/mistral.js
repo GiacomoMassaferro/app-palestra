@@ -23,6 +23,7 @@ function cleanJsonString(str) {
         .replace(/\*(.*?)\*/g, '$1')          // *corsivo* -> testo
         .replace(/_(.*?)_/g, '$1')             // _corsivo_ -> testo
         .replace(/~~(.*?)~~/g, '$1')           // ~~barrato~~ -> testo
+        .replace(/`(.*?)`/g, '$1')             // `code` -> testo
 
         // 3. Rimuovi caratteri di controllo
         // eslint-disable-next-line no-control-regex
@@ -38,18 +39,18 @@ function cleanJsonString(str) {
         // 6. Rimuovi spazi non-breaking
         .replace(/\u00A0/g, ' ')
         // 7. Sostituisci caratteri speciali italiani con versioni ASCII
-        .replace(/[\u00E0\u00E1\u00E2\u00E4\u00E5]/g, 'a')  // àáâäå -> a
-        .replace(/[\u00C0\u00C1\u00C2\u00C4\u00C5]/g, 'A')  // ÀÁÂÄÅ -> A
-        .replace(/[\u00E8\u00E9\u00EA\u00EB]/g, 'e')  // èéêë -> e
-        .replace(/[\u00C8\u00C9\u00CA\u00CB]/g, 'E')  // ÈÉÊË -> E
-        .replace(/[\u00EC\u00ED\u00EE\u00EF]/g, 'i')  // ìíîï -> i
-        .replace(/[\u00CC\u00CD\u00CE\u00CF]/g, 'I')  // ÌÍÎÏ -> I
-        .replace(/[\u00F2\u00F3\u00F4\u00F6\u00F8]/g, 'o')  // òóôöø -> o
-        .replace(/[\u00D2\u00D3\u00D4\u00D6\u00D8]/g, 'O')  // ÒÓÔÖØ -> O
-        .replace(/[\u00F9\u00FA\u00FC\u00FD]/g, 'u')  // ùúûü -> u
-        .replace(/[\u00D9\u00DA\u00DC\u00DD]/g, 'U')  // ÙÚÛÜ -> U
-        .replace(/[\u00F1\u00D1]/g, 'n')  // ñÑ -> n
-        .replace(/[\u00C7\u00E7]/g, 'c')  // Çç -> c
+        .replace(/[\u00E0\u00E1\u00E2\u00E4\u00E5]/g, 'a')
+        .replace(/[\u00C0\u00C1\u00C2\u00C4\u00C5]/g, 'A')
+        .replace(/[\u00E8\u00E9\u00EA\u00EB]/g, 'e')
+        .replace(/[\u00C8\u00C9\u00CA\u00CB]/g, 'E')
+        .replace(/[\u00EC\u00ED\u00EE\u00EF]/g, 'i')
+        .replace(/[\u00CC\u00CD\u00CE\u00CF]/g, 'I')
+        .replace(/[\u00F2\u00F3\u00F4\u00F6\u00F8]/g, 'o')
+        .replace(/[\u00D2\u00D3\u00D4\u00D6\u00D8]/g, 'O')
+        .replace(/[\u00F9\u00FA\u00FC\u00FD]/g, 'u')
+        .replace(/[\u00D9\u00DA\u00DC\u00DD]/g, 'U')
+        .replace(/[\u00F1\u00D1]/g, 'n')
+        .replace(/[\u00C7\u00E7]/g, 'c')
 }
 
 /**
@@ -116,7 +117,7 @@ function safeJsonParse(str, fallback = null) {
             }
         }
 
-        return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [] }
+        return fallback || { risposta: "Risposta non valida. La risposta potrebbe essere troncata o malformata.", modifiche: {}, consigli: [] }
     }
 }
 
@@ -393,7 +394,11 @@ export async function chatWithMistral(message, context) {
         let existingVacation = null
         try {
             const saved = localStorage.getItem('palestra_vacation')
-            existingVacation = saved ? JSON.parse(saved) : { vacationPeriods: [], vacationSuggestions: {} }
+            existingVacation = saved ? JSON.parse(saved) : null
+            // Assicurati che la struttura sia valida
+            if (!existingVacation || !Array.isArray(existingVacation.vacationPeriods)) {
+                existingVacation = { vacationPeriods: [], vacationSuggestions: {} }
+            }
         } catch (e) {
             // Errore nel parsing JSON, usa valori di default
             console.warn('Errore parsing vacation data:', e)
@@ -409,10 +414,11 @@ export async function chatWithMistral(message, context) {
         localStorage.setItem('palestra_vacation', JSON.stringify(updatedVacation))
         
         return {
-            risposta: `Ferie aggiunte: dal ${startDate} al ${endDate}. Piano generato automaticamente!`,
+            risposta: `✅ Ferie aggiunte: dal ${startDate} al ${endDate}. Piano generato automaticamente!`,
             modifiche: {},
-            consigli: ["Traccia attivita e pasti nella sezione Vacanza. La pagina si aggiornerà..."],
-            vacationData: updatedVacation
+            consigli: ["Traccia attivita e pasti nella sezione Vacanza. Ricarica la pagina per vedere le modifiche."],
+            vacationData: updatedVacation,
+            refreshPage: true
         }
     }
 

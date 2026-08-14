@@ -11,10 +11,13 @@ export default function DayDetails() {
     useEffect(() => {
         const savedData = localStorage.getItem('palestra_data')
         const savedSuggestions = localStorage.getItem('palestra_suggestions')
+        const savedVacation = localStorage.getItem('palestra_vacation')
         
         const data = savedData ? JSON.parse(savedData) : null
         const suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : null
+        const vacationData = savedVacation ? JSON.parse(savedVacation) : null
         
+        // Prova prima con il nome del giorno (es. Lunedi)
         let workoutInfo = data?.workoutDetails?.[date]
         let mealInfo = data?.mealDetails?.[date]
         let calendarSuggestions = data?.calendario?.[date]?.suggerimenti || suggestions?.calendario?.[date]?.suggerimenti || []
@@ -27,7 +30,35 @@ export default function DayDetails() {
             mealInfo = suggestions.dieta[date].pasti
         }
         
-        setDayData({ workoutInfo, mealInfo, calendarSuggestions })
+        // Se non trova nulla con il nome del giorno, prova a convertirlo in formato data
+        // Es. se date è "Lunedi", prova a trovare il prossimo Lunedi
+        if (!workoutInfo && !mealInfo && calendarSuggestions.length === 0) {
+            const daysOfWeek = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato']
+            const dayIndex = daysOfWeek.findIndex(d => d === date)
+            
+            if (dayIndex !== -1) {
+                // Cerca nel suggestions usando il nome del giorno
+                workoutInfo = suggestions?.routine?.[date]
+                mealInfo = suggestions?.dieta?.[date]?.pasti
+                calendarSuggestions = suggestions?.calendario?.[date]?.suggerimenti || []
+            }
+        }
+        
+        // Verifica se è un giorno di ferie
+        const isVacationDay = vacationData?.vacationPeriods?.some(period => {
+            const periodStart = new Date(period.startDate)
+            const periodEnd = new Date(period.endDate)
+            // Se date è una data ISO (YYYY-MM-DD)
+            if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const dateObj = new Date(date)
+                return dateObj >= periodStart && dateObj <= periodEnd
+            }
+            return false
+        })
+        
+        const vacationSuggestion = isVacationDay ? (vacationData?.vacationSuggestions || {})[date] : null
+        
+        setDayData({ workoutInfo, mealInfo, calendarSuggestions, isVacationDay, vacationSuggestion })
         setLoading(false)
     }, [date])
 

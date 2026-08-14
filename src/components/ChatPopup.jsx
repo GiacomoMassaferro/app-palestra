@@ -60,10 +60,19 @@ export default function ChatPopup() {
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                 modifiche: response.modifiche,
-                consigli: response.consigli
+                consigli: response.consigli,
+                vacationData: response.vacationData,
+                refreshPage: response.refreshPage
             }
             
             setMessages(prev => [...prev, botMessage])
+            
+            // Se c'è la richiesta di refresh, ricarica la pagina dopo un breve delay
+            if (response.refreshPage) {
+                setTimeout(() => {
+                    window.location.reload()
+                }, 1500)
+            }
             
         } catch (err) {
             console.error('Errore nell invio del messaggio:', err)
@@ -122,8 +131,8 @@ export default function ChatPopup() {
 
             // Applica le modifiche alla dieta (merge)
             const newDieta = { ...currentSuggestions.dieta }
-            if (modifiche.dieta) {
-                Object.entries(modifiche.dieta).forEach(([giorno, pasti]) => {
+            if (modifiche.dieta && typeof modifiche.dieta === 'object') {
+                Object.entries(modifiche.dieta || {}).forEach(([giorno, pasti]) => {
                     newDieta[giorno] = { 
                         ...newDieta[giorno],
                         pasti: pasti.pasti ? { ...pasti.pasti } : {}
@@ -133,9 +142,9 @@ export default function ChatPopup() {
 
             // Applica le modifiche alla routine (merge)
             const newRoutine = { ...currentSuggestions.routine }
-            if (modifiche.routine) {
-                Object.entries(modifiche.routine).forEach(([giorno, dati]) => {
-                    newRoutine[giorno] = { ...dati }
+            if (modifiche.routine && typeof modifiche.routine === 'object') {
+                Object.entries(modifiche.routine || {}).forEach(([giorno, dati]) => {
+                    newRoutine[giorno] = dati ? { ...dati } : {}
                 })
             }
 
@@ -293,21 +302,21 @@ export default function ChatPopup() {
                                             )}
                                             
                                             {/* Mostra modifiche e consigli se e un messaggio del bot */}
-                                            {msg.sender === 'bot' && msg.modifiche && Object.keys(msg.modifiche).length > 0 && (
+                                            {msg.sender === 'bot' && msg.modifiche && Object.keys(msg.modifiche || {}).length > 0 && (
                                                 <div className="mt-1">
                                                     <div className="alert alert-info p-1 mb-2 small">
                                                         <strong>📋 Anteprima modifiche:</strong> Queste modifiche verranno applicate al tuo calendario.
                                                     </div>
-                                                    {msg.modifiche.dieta && Object.keys(msg.modifiche.dieta).length > 0 && (
+                                                    {msg.modifiche.dieta && Object.keys(msg.modifiche.dieta || {}).length > 0 && (
                                                         <div className="mb-1">
                                                             <strong className="text-success small">🍽️ Dieta:</strong>
-                                                            {Object.entries(msg.modifiche.dieta).map(([giorno, dati]) => (
+                                                            {Object.entries(msg.modifiche.dieta || {}).map(([giorno, dati]) => (
                                                                 <div key={giorno} className="ms-2 mt-1">
                                                                     <small className="text-muted">{giorno}:</small>
-                                                                    {dati.pasti && Object.entries(dati.pasti).map(([pasto, dettagli]) => (
+                                                                    {dati.pasti && Object.entries(dati.pasti || {}).map(([pasto, dettagli]) => (
                                                                         <div key={pasto} className="ms-2">
                                                                             <span className="badge bg-success bg-opacity-10 text-success small p-1">
-                                                                                {pasto}: {dettagli.cibo || 'N/D'}{dettagli.grammi ? ` (${dettagli.grammi})` : ''}{dettagli.calorie ? ` - ${dettagli.calorie} kcal` : ''}
+                                                                                {pasto}: {dettagli?.cibo || 'N/D'}{dettagli?.grammi ? ` (${dettagli.grammi})` : ''}{dettagli?.calorie ? ` - ${dettagli.calorie} kcal` : ''}
                                                                             </span>
                                                                         </div>
                                                                     ))}
@@ -315,17 +324,17 @@ export default function ChatPopup() {
                                                             ))}
                                                         </div>
                                                     )}
-                                                    {msg.modifiche.routine && Object.keys(msg.modifiche.routine).length > 0 && (
+                                                    {msg.modifiche.routine && Object.keys(msg.modifiche.routine || {}).length > 0 && (
                                                         <div className="mb-1">
                                                             <strong className="text-primary small">🏋️ Routine:</strong>
-                                                            {Object.entries(msg.modifiche.routine).map(([giorno, dati]) => (
+                                                            {Object.entries(msg.modifiche.routine || {}).map(([giorno, dati]) => (
                                                                 <div key={giorno} className="ms-2 mt-1">
                                                                     <small className="text-muted">{giorno}:</small>
                                                                     <div className="ms-2">
                                                                         <span className="badge bg-primary bg-opacity-10 text-primary small p-1">
-                                                                            {dati.scheda || 'N/D'} ({dati.durata || '?'} min)
+                                                                            {dati?.scheda || 'N/D'} ({dati?.durata || '?'} min)
                                                                         </span>
-                                                                        {dati.esercizi && dati.esercizi.length > 0 && (
+                                                                        {dati?.esercizi && Array.isArray(dati.esercizi) && dati.esercizi.length > 0 && (
                                                                             <div className="mt-1">
                                                                                 {dati.esercizi.map((esercizio, idx) => (
                                                                                     <span key={idx} className="badge bg-secondary bg-opacity-10 text-secondary small p-1 ms-1">
@@ -348,7 +357,7 @@ export default function ChatPopup() {
                                                                         return <li key={idx} className="small m-0 p-0">{consiglio}</li>
                                                                     }
                                                                     if (consiglio && typeof consiglio === 'object') {
-                                                                        const text = consiglio.consiglio || consiglio.text || consiglio.risposta || Object.values(consiglio).join(' ')
+                                                                        const text = consiglio.consiglio || consiglio.text || consiglio.risposta || (Object.values(consiglio) || []).join(' ')
                                                                         return <li key={idx} className="small m-0 p-0">{typeof text === 'string' ? text : JSON.stringify(consiglio)}</li>
                                                                     }
                                                                     return <li key={idx} className="small m-0 p-0">{String(consiglio)}</li>
@@ -358,7 +367,7 @@ export default function ChatPopup() {
                                                     )}
                                                     
                                                     {/* Pulsante Applica modifiche - solo se ci sono modifiche */}
-                                                    {msg.modifiche && Object.keys(msg.modifiche).length > 0 && (
+                                                    {msg.modifiche && Object.keys(msg.modifiche || {}).length > 0 && (
                                                         <div className="mt-2 text-end">
                                                             <button
                                                                 className="btn btn-sm btn-success"
@@ -380,6 +389,16 @@ export default function ChatPopup() {
                                             {msg.isSuccess && (
                                                 <div className="text-success small mt-1">
                                                     ✅ {msg.text}
+                                                </div>
+                                            )}
+                                            {msg.refreshPage && (
+                                                <div className="text-info small mt-1">
+                                                    <i className="bi bi-arrow-clockwise me-1"></i> La pagina verrà ricaricata...
+                                                </div>
+                                            )}
+                                            {msg.vacationData && (
+                                                <div className="text-primary small mt-1">
+                                                    <i className="bi bi-calendar-check me-1"></i> Ferie registrate con successo!
                                                 </div>
                                             )}
                                         </div>

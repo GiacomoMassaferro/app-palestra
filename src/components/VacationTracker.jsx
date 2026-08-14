@@ -143,12 +143,16 @@ export default function VacationTracker({ vacationData, vacationActivities = [],
                                                         Attività Consigliate
                                                     </h6>
                                                     <ul className="list-unstyled mb-0">
-                                                        {suggestion.workout.exercises.map((exercise, idx) => {
+                                                        {(suggestion.workout.exercises || []).map((exercise, idx) => {
                                                             // Genera ID univoco per ogni attività
                                                             const activityId = `act-${dateStr}-${idx}`
                                                             // Verifica se è stata segnalata come eseguita
-                                                            // (In futuro leggere da localStorage)
-                                                            const isDone = false // TODO: implementare tracciamento
+                                                            const isDone = vacationActivities.some(act => 
+                                                                act.date === dateStr && 
+                                                                act.type === 'workout' && 
+                                                                act.description === exercise && 
+                                                                act.done
+                                                            )
                                                             
                                                             return (
                                                                 <li key={idx} className="mb-2 p-2 bg-light rounded d-flex justify-content-between align-items-center">
@@ -180,7 +184,7 @@ export default function VacationTracker({ vacationData, vacationActivities = [],
                                                     </ul>
                                                     <div className="alert alert-info p-2 mt-2 mb-0 small">
                                                         <i className="bi bi-lightbulb me-1"></i>
-                                                        {suggestion.workout.tips}
+                                                        {suggestion.workout.tips || 'Mantieni il movimento senza stress'}
                                                     </div>
                                                 </div>
                                             )}
@@ -193,10 +197,10 @@ export default function VacationTracker({ vacationData, vacationActivities = [],
                                                         Consigli Alimentari
                                                     </h6>
                                                     <div className="alert alert-success p-2 small">
-                                                        {suggestion.diet.tips}
+                                                        {suggestion.diet.tips || 'Mantieni equilibrio: 60% proteine/verdure, 30% carboidrati, 10% dolci'}
                                                     </div>
                                                     <small className="text-muted">
-                                                        Calorie base: {suggestion.diet.baseCalories} kcal
+                                                        Calorie base: {suggestion.diet.baseCalories || 1800} kcal
                                                     </small>
                                                 </div>
                                             )}

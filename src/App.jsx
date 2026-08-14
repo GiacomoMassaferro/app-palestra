@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout'
 import Home from './pages/Home'
 import DayDetails from './pages/DayDetails'
 import Settings from './pages/Settings'
+import Profile from './pages/Profile'
 import Login from './pages/Login'
 
 function ProtectedRoute({ children }) {
@@ -31,6 +32,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="day/:date" element={<DayDetails />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="profile" element={<Profile />} />
         </Route>
         <Route path="/chat" element={<Navigate to="/" replace />} />
         <Route path="*" element={<Navigate to="/" replace />} />

@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react'
+import { mockUsers } from '../data/mockData'
 
 const AuthContext = createContext(null)
 
@@ -30,6 +31,26 @@ export function AuthProvider({ children }) {
         return userWithTimestamp
     }
 
+    const loginWithCredentials = (email, password) => {
+        // Cerca utente mock
+        const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password)
+        
+        if (user) {
+            // Calcola eta aggiornata
+            const userWithTimestamp = {
+                ...user,
+                eta: new Date().getFullYear() - user.annoNascita,
+                createdAt: new Date().toISOString(),
+                lastLogin: new Date().toISOString()
+            }
+            localStorage.setItem('palestra_user', JSON.stringify(userWithTimestamp))
+            setUser(userWithTimestamp)
+            return { success: true, user: userWithTimestamp }
+        }
+        
+        return { success: false, error: 'Email o password errati' }
+    }
+
     const logout = () => {
         localStorage.removeItem('palestra_user')
         setUser(null)
@@ -51,7 +72,7 @@ export function AuthProvider({ children }) {
     const isAuthenticated = !!user
 
     return (
-        <AuthContext.Provider value={{ user, login, logout, updateUser, isAuthenticated, loading }}>
+        <AuthContext.Provider value={{ user, login, loginWithCredentials, logout, updateUser, isAuthenticated, loading }}>
             {children}
         </AuthContext.Provider>
     )

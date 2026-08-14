@@ -2,10 +2,63 @@
  * Dati mock per testare l'app palestra senza API Mistral
  * 
  * Questo file contiene dati realistici per:
+ * - Utente (per il login)
  * - Configurazione base (form Settings)
  * - Suggerimenti AI (formato Mistral)
  * - Dettagli completi per calendari e pagine
  */
+
+// Dati mock per l'utente (compatibile con localStorage 'palestra_user')
+export const mockUser = {
+    nome: 'Mario',
+    cognome: 'Rossi',
+    email: 'mario.rossi@example.com',
+    annoNascita: 1990,
+    eta: 34,
+    altezza: 175,
+    peso: 70,
+    sesso: 'Maschio',
+    createdAt: new Date().toISOString(),
+    lastLogin: new Date().toISOString()
+};
+
+// Dati mock per utenti pre-registrati (per login con credenziali)
+// Password per tutti: 'password123'
+export const mockUsers = [
+    {
+        email: 'mario.rossi@example.com',
+        password: 'password123',
+        nome: 'Mario',
+        cognome: 'Rossi',
+        annoNascita: 1990,
+        eta: new Date().getFullYear() - 1990,
+        altezza: 175,
+        peso: 70,
+        sesso: 'Maschio'
+    },
+    {
+        email: 'laura.bianchi@example.com',
+        password: 'password123',
+        nome: 'Laura',
+        cognome: 'Bianchi',
+        annoNascita: 1985,
+        eta: new Date().getFullYear() - 1985,
+        altezza: 165,
+        peso: 58,
+        sesso: 'Femmina'
+    },
+    {
+        email: 'luca.verdi@example.com',
+        password: 'password123',
+        nome: 'Luca',
+        cognome: 'Verdi',
+        annoNascita: 1995,
+        eta: new Date().getFullYear() - 1995,
+        altezza: 180,
+        peso: 80,
+        sesso: 'Maschio'
+    }
+];
 
 // Dati mock per il form Settings (compatibile con localStorage 'palestra_data')
 export const mockPalestraData = {
@@ -367,6 +420,7 @@ export const mockFullData = {
  * NOTA: Non carica dati ferie mock - l'utente deve inserirli manualmente
  */
 export function loadMockData() {
+    localStorage.setItem('palestra_user', JSON.stringify(mockUser))
     localStorage.setItem('palestra_data', JSON.stringify(mockFullData))
     localStorage.setItem('palestra_suggestions', JSON.stringify(mockSuggestions))
     // Rimuovi eventuali dati ferie mock se presenti
@@ -374,6 +428,7 @@ export function loadMockData() {
     localStorage.removeItem('palestra_vacation_activities')
     console.log('Dati mock caricati in localStorage!')
     return {
+        palestra_user: mockUser,
         palestra_data: mockFullData,
         palestra_suggestions: mockSuggestions
     }
@@ -383,9 +438,12 @@ export function loadMockData() {
  * Funzione per svuotare i dati mock da localStorage
  */
 export function clearMockData() {
+    localStorage.removeItem('palestra_user')
     localStorage.removeItem('palestra_data')
     localStorage.removeItem('palestra_suggestions')
     localStorage.removeItem('palestra_vacation')
     localStorage.removeItem('palestra_vacation_activities')
+    localStorage.removeItem('palestra_dieta_file')
+    localStorage.removeItem('palestra_scheda_file')
     console.log('Dati mock rimossi da localStorage!')
 }

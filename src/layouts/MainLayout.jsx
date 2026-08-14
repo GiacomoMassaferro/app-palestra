@@ -91,6 +91,14 @@ export default function MainLayout() {
                                         <li><hr className="dropdown-divider" /></li>
                                         <li>
                                             <button 
+                                                className="dropdown-item"
+                                                onClick={() => navigate('/profile')}
+                                            >
+                                                <i className="bi bi-person-gear me-2"></i> Il mio profilo
+                                            </button>
+                                        </li>
+                                        <li>
+                                            <button 
                                                 className="dropdown-item text-danger"
                                                 onClick={() => {
                                                     logout()

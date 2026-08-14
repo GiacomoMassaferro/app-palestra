@@ -99,6 +99,16 @@ export default function ChatPopup() {
      * Applica le modifiche suggerite dal bot al piano corrente
      */
     const applyModifiche = (modifiche, messageIndex) => {
+        if (!modifiche) {
+            setMessages(prev => [...prev, {
+                text: '❌ Nessuna modifica da applicare.',
+                sender: 'system',
+                timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                isError: true
+            }])
+            return
+        }
+        
         try {
             // Carica i dati correnti da localStorage
             const savedSuggestions = localStorage.getItem('palestra_suggestions')
@@ -110,7 +120,7 @@ export default function ChatPopup() {
                 Object.entries(modifiche.dieta).forEach(([giorno, pasti]) => {
                     newDieta[giorno] = { 
                         ...newDieta[giorno],
-                        pasti: { ...pasti.pasti }
+                        pasti: pasti.pasti ? { ...pasti.pasti } : {}
                     }
                 })
             }
@@ -150,15 +160,15 @@ export default function ChatPopup() {
                 return msg
             }))
 
-            // Mostra notifica e ricarica la pagina per aggiornare il calendario
+            // Mostra notifica
             setMessages(prev => [...prev, {
-                text: '✅ Modifiche applicate con successo! Il calendario si aggiornerà...',
+                text: '✅ Modifiche applicate con successo!',
                 sender: 'system',
                 timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                 isSuccess: true
             }])
             
-            // Ricarica la pagina dopo un breve delay per far vedere il messaggio
+            // Ricarica la pagina dopo un breve delay per aggiornare il calendario
             setTimeout(() => {
                 window.location.reload()
             }, 1000)
@@ -277,7 +287,7 @@ export default function ChatPopup() {
                                             )}
                                             
                                             {/* Mostra modifiche e consigli se e un messaggio del bot */}
-                                            {msg.sender === 'bot' && msg.modifiche && (
+                                            {msg.sender === 'bot' && msg.modifiche && Object.keys(msg.modifiche).length > 0 && (
                                                 <div className="mt-1">
                                                     <div className="alert alert-info p-1 mb-2 small">
                                                         <strong>📋 Anteprima modifiche:</strong> Queste modifiche verranno applicate al tuo calendario.
@@ -288,10 +298,10 @@ export default function ChatPopup() {
                                                             {Object.entries(msg.modifiche.dieta).map(([giorno, dati]) => (
                                                                 <div key={giorno} className="ms-2 mt-1">
                                                                     <small className="text-muted">{giorno}:</small>
-                                                                    {Object.entries(dati.pasti).map(([pasto, dettagli]) => (
+                                                                    {dati.pasti && Object.entries(dati.pasti).map(([pasto, dettagli]) => (
                                                                         <div key={pasto} className="ms-2">
                                                                             <span className="badge bg-success bg-opacity-10 text-success small p-1">
-                                                                                {pasto}: {dettagli.cibo} ({dettagli.grammi}, {dettagli.calorie} kcal)
+                                                                                {pasto}: {dettagli.cibo || 'N/D'}{dettagli.grammi ? ` (${dettagli.grammi})` : ''}{dettagli.calorie ? ` - ${dettagli.calorie} kcal` : ''}
                                                                             </span>
                                                                         </div>
                                                                     ))}
@@ -307,7 +317,7 @@ export default function ChatPopup() {
                                                                     <small className="text-muted">{giorno}:</small>
                                                                     <div className="ms-2">
                                                                         <span className="badge bg-primary bg-opacity-10 text-primary small p-1">
-                                                                            {dati.scheda} ({dati.durata} min)
+                                                                            {dati.scheda || 'N/D'} ({dati.durata || '?'} min)
                                                                         </span>
                                                                         {dati.esercizi && dati.esercizi.length > 0 && (
                                                                             <div className="mt-1">
@@ -323,27 +333,36 @@ export default function ChatPopup() {
                                                             ))}
                                                         </div>
                                                     )}
-                                                    {msg.consigli && msg.consigli.length > 0 && (
+                                                    {msg.consigli && Array.isArray(msg.consigli) && msg.consigli.length > 0 && (
                                                         <div className="mt-1">
                                                             <strong className="text-warning small">💡 Consigli:</strong>
                                                             <ul className="ms-2 mb-0 ps-3">
-                                                                {msg.consigli.map((consiglio, idx) => (
-                                                                    <li key={idx} className="small m-0 p-0">{consiglio}</li>
-                                                                ))}
+                                                                {msg.consigli.map((consiglio, idx) => {
+                                                                    if (typeof consiglio === 'string') {
+                                                                        return <li key={idx} className="small m-0 p-0">{consiglio}</li>
+                                                                    }
+                                                                    if (consiglio && typeof consiglio === 'object') {
+                                                                        const text = consiglio.consiglio || consiglio.text || consiglio.risposta || Object.values(consiglio).join(' ')
+                                                                        return <li key={idx} className="small m-0 p-0">{typeof text === 'string' ? text : JSON.stringify(consiglio)}</li>
+                                                                    }
+                                                                    return <li key={idx} className="small m-0 p-0">{String(consiglio)}</li>
+                                                                })}
                                                             </ul>
                                                         </div>
                                                     )}
                                                     
-                                                    {/* Pulsante Applica modifiche */}
-                                                    <div className="mt-2 text-end">
-                                                        <button
-                                                            className="btn btn-sm btn-success"
-                                                            onClick={() => applyModifiche(msg.modifiche, index)}
-                                                            disabled={msg.applied}
-                                                        >
-                                                            {msg.applied ? '✅ Applicato!' : '✓ Applica modifiche'}
-                                                        </button>
-                                                    </div>
+                                                    {/* Pulsante Applica modifiche - solo se ci sono modifiche */}
+                                                    {msg.modifiche && Object.keys(msg.modifiche).length > 0 && (
+                                                        <div className="mt-2 text-end">
+                                                            <button
+                                                                className="btn btn-sm btn-success"
+                                                                onClick={() => applyModifiche(msg.modifiche, index)}
+                                                                disabled={msg.applied}
+                                                            >
+                                                                {msg.applied ? '✅ Applicato!' : '✓ Applica modifiche'}
+                                                            </button>
+                                                        </div>
+                                                    )}
                                                 </div>
                                             )}
                                             

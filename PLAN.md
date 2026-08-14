@@ -159,6 +159,23 @@ src/
 - [x] Aggiunta funzionalità "Applica modifiche" con anteprima e conferma
 - [x] Salvataggio modifiche in localStorage per aggiornare calendario
 
+## 2025-01-17
+- [x] Calendario mensile completo con navigazione tra mesi
+- [x] Griglia 7xN con tutti i giorni del mese
+- [x] Evidenziazione giorno corrente in blu
+- [x] Indicatori 🏋️ per allenamento e 🍽️ per pasti
+- [x] Tooltip con dettagli al hover su ogni giorno
+- [x] Aggiunta sezione "Prossima attivita" sotto calendario
+- [x] Logica per determinare prossima attivita (pasto o allenamento) in base all'ora corrente
+- [x] Visualizzazione consigli IA/ricette per prossima attivita
+- [x] Struttura dati ferie in mockData.js e localStorage
+- [x] Sezione gestione ferie in Settings.jsx
+- [x] Visualizzazione giorni ferie (🏖️) nel calendario
+- [x] Componente VacationTracker per tracciare attività e pasti
+- [x] Comandi chat AI: /ferie, /ho mangiato, /ho fatto, /piano rientro
+- [x] Generazione piano vacanza e rientro automatica
+- [x] Verifica OXLint e build
+
 ## 2025-06-25
 - [x] Creazione PLAN.md
 - [x] Configurazione iniziale progetto (Vite, React)
@@ -177,6 +194,92 @@ src/
 
 ## 2025-06-24
 - [x] Scaffolding e configurazione iniziale
+
+## 2025-10-28
+- [x] Aggiunta sezione "Oggi è [Giorno, data completa]" in cima alla pagina Home
+- [x] Implementate funzioni per generare suggerimenti di ricetta in base al tipo di pasto
+- [x] Implementate funzioni per generare consigli su cosa portare in base al tipo di allenamento
+- [x] Aggiunto suggerimento IA specifico per ricette nella visualizzazione pasti
+- [x] Aggiunto consiglio IA specifico su cosa portare per allenamento
+- [x] Verificata assenza di scrollbar orizzontale nel calendario
+- [x] Eseguito OXLint e build con successo
+- [x] **Rimosso dati mock per ferie**: eliminati mockVacationData, mockVacationActivities, mockReturnPlan
+- [x] **Aggiornata loadMockData()**: ora carica solo dati base senza ferie
+- [x] **Aggiornato Home.jsx**: usa loadMockData() invece di loadFullMockDataWithVacation()
+- [x] Verifica OXLint e build dopo modifiche
+- [x] **Risolto errore JSON in mistral.js**: sostituiti caratteri speciali italiani (à, è, ì) con versioni ASCII
+- [x] **Risolto errore JSON in ChatPopup.jsx**: sostituito carattere 'à' in "applicate" con 'a'
+- [x] **Aggiunta funzione cleanJsonString()** in mistral.js per pulire caratteri di controllo e formattazione markdown
+- [x] **Aggiunta funzione safeJsonParse()** per parsing robusto con fallback
+- [x] **Aggiunta response_format: { type: 'json_object' }** per forzare JSON valido da API
+- [x] **Aumentato max_tokens a 8192** per evitare troncamento
+- [x] **Aggiunte istruzioni anti-markdown** nei prompt
+- [x] **Tutte le funzioni restituiscono oggetti** invece di lanciare errori
+- [x] **Risolto TypeError in ChatPopup.jsx**: aggiunto controllo dati.pasti && prima di Object.entries()
+- [x] **Risolto TypeError in ChatPopup.jsx:331**: gestione consigli come oggetti o stringhe
+- [x] **Migliorata chatWithMistral()**: riconoscimento comandi in linguaggio naturale
+- [x] Supporto per "voglio ferie dal 14 al 25 agosto", "ho mangiato pizza", "ho fatto yoga"
+- [x] Supporto per formati multipli: GG-MM, nomi mesi, con/senza anno
+- [x] Verifica finale OXLint e build
+
+## 2025-12-28
+- [x] **Risolti errori JSON persistenti in mistral.js**: 
+  - Migliorata funzione cleanJsonString() con sostituzione caratteri speciali italiani (à, è, ì, ò, ù, etc.)
+  - Migliorata funzione safeJsonParse() con controlli più robusti su stringhe vuote e oggetti non validi
+  - Aggiunto commento // eslint-disable-next-line no-control-regex per regex che rimuove caratteri di controllo
+- [x] **Fixato salvataggio ferie in chatWithMistral()**: 
+  - Rimossa dipendenza da API Mistral per comandi di ferie
+  - Generazione diretta della risposta senza chiamare l'API
+  - Salvataggio corretto in localStorage con merge dei periodi esistenti
+  - Rimosso setTimeout per reload automatico (ora gestito dal frontend)
+- [x] **Fixati errori in ChatPopup.jsx**:
+  - Aggiunto controllo Object.keys(msg.modifiche).length > 0 prima di renderizzare modifiche
+  - Gestione robusta di consigli che sono oggetti (estrazione di consiglio.text o consiglio.risposta)
+  - Fixato pulsante "Applica modifiche" per mostrare solo quando ci sono modifiche
+  - Aggiunto controllo if (!modifiche) in applyModifiche()
+  - Fixato pasti.pasti && in applyModifiche()
+- [x] **Fixato Home.jsx**:
+  - Aggiunto stato vacationActivities e caricamento da localStorage
+  - Passato vacationActivities a VacationTracker
+- [x] **Fixato VacationTracker.jsx**:
+  - Rimosso import inutilizzato useEffect
+  - Rimossa funzione non usata getActivitiesForDate
+  - Aggiunte funzioni getMealsForDate() e getWorkoutsForDate()
+  - Aggiunta visualizzazione pasti e attivita registrate
+- [x] **Fixati comandi chat AI in mistral.js**:
+  - Aggiunto supporto per "sarò in ferie" e "piano di rientro"
+  - Migliorato riconoscimento formati data (GG-MM, nomi mesi, etc.)
+  - Aggiunto try-catch per /ho mangiato e /ho fatto
+  - Fixato context?.data?.obiettivo per evitare errori
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success
+
+---
+
+### Milestone 10: Calendario Mensile Completo
+- [x] Sostituire calendario settimanale con calendario mensile completo
+- [x] Aggiungere navigazione tra mesi (precedente/successivo)
+- [x] Mostrare tutti i giorni del mese in griglia 7xN
+- [x] Evidenziare il giorno corrente nel calendario
+- [x] Mostrare indicatori visivi per giorni con allenamento (🏋️) e/o pasti (🍽️)
+- [x] Mantenere tooltip con dettagli allenamento/pasti al hover
+- [x] Aggiungere sezione "Prossima attivita" sotto il calendario
+- [x] Implementare logica per determinare prossima attivita (pasto o allenamento) in base all'ora corrente
+- [x] Mostrare consigli IA per allenamento o suggerimento ricetta per pasto
+- [x] Verificare responsive design del nuovo layout
+- [x] Eseguire OXLint e build
+
+### Milestone 11: Gestione Ferie e Piano Adattato
+- [x] Aggiungere struttura dati per periodi ferie in localStorage
+- [x] Creare sezione in Settings.jsx per impostare date inizio/fine ferie
+- [x] Visualizzare giorni di ferie nel calendario con sfondo arancione (🏖️)
+- [x] Generazione automatica piano vacanza con esercizi leggeri e dieta flessibile
+- [x] Creare componente VacationTracker per tracciare attività e pasti mangiati
+- [x] Salvataggio attività/pasti in localStorage
+- [x] Integrare chat AI con comandi: /ferie, /ho mangiato, /ho fatto, /piano rientro
+- [x] Generazione piano di rientro post-vacanza basato su attività eseguite e sgarri
+- [x] Aggiornare mistral.js con gestione comandi ferie
+- [x] Verificare OXLint e build
 
 ---
 

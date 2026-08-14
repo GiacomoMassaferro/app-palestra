@@ -5,8 +5,12 @@ Un'applicazione web per gestire dieta e routine di palestra con suggerimenti per
 ## Funzionalita
 
 - **Configurazione personalizzata**: Inserisci obiettivo, livello, preferenze alimentari, giorni di allenamento, durata e orari pasti
-- **Calendario interattivo**: Visualizza i giorni di allenamento e pasti programmati con design moderno
+- **Calendario mensile interattivo**: Visualizza tutti i giorni del mese in una griglia 7xN con navigazione tra mesi (freccie), evidenziazione del giorno corrente, indicatori visivi per allenamento (🏋️) e pasti (🍽️), tooltip con dettagli al hover
 - **Dettagli giornali**: Visualizza scheda allenamento, esercizi, dieta e suggerimenti AI per ogni giorno con tab e progress bar
+- **Prossima attivita**: Mostra in tempo reale la prossima attivita della giornata (allenamento con consigli su cosa portare o pasto con ricetta consigliata e informazioni nutrizionali)
+- **Gestione ferie**: Imposta periodi di ferie da Settings o tramite chat AI (/ferie 15-01 20-01), visualizzazione giorni ferie nel calendario (🏖️), generazione automatica piano vacanza con esercizi leggeri e dieta flessibile
+- **Tracciamento attività vacanza**: Segna come eseguite le attività consigliate, registra pasti mangiati tramite form dedicato o chat AI (/ho mangiato pizza, /ho fatto yoga 30 min)
+- **Piano di rientro**: Generazione automatica piano post-vacanza basato su attività eseguite e sgarri alimentari segnalati (comando /piano rientro o automatico al termine ferie)
 - **Integrazione AI Mistral**: Genera suggerimenti personalizzati basati sui tuoi dati
 - **Chat con Bot AI (popup)**: Conversa con l'assistente virtuale per modificare il piano in caso di imprevisti o necessità diverse - disponibile in tutte le pagine tramite pulsante fisso
 - **Design accattivante**: Layout moderno con navbar, card colorate, icone, animazioni e responsive design
@@ -171,6 +175,21 @@ La funzionalità di chat ti permette di:
    - Consigli aggiuntivi
 6. **Conferma le modifiche**: Clicca su "✓ Applica modifiche" per salvare le modifiche suggerite
 7. Il calendario verrà aggiornato automaticamente con le nuove modifiche
+
+### Comandi Speciali per Ferie e Tracciamento:
+La chat supporta comandi rapidi per gestire le ferie:
+
+| Comando | Descrizione | Esempio |
+|---------|-------------|---------|
+| `/ferie` | Aggiunge un periodo di ferie | `/ferie 15-01 20-01` |
+| `/ho mangiato` | Registra un pasto mangiato in vacanza | `/ho mangiato pizza margherita + birra` |
+| `/ho fatto` | Registra un'attività eseguita in vacanza | `/ho fatto yoga 30 minuti` |
+| `/piano rientro` | Genera piano di rientro post-vacanza | `/piano rientro` |
+
+**Note:**
+- I comandi `/ho mangiato` e `/ho fatto` registrano automaticamente in localStorage
+- Il comando `/piano rientro` genera un piano di 7 giorni per recuperare dopo le ferie
+- Tutti i dati vengono salvati e usati per personalizzare il piano di rientro
 
 **Nota**: Per usare la chat con l'API Mistral, devi configurare la chiave API nel file `.env`. Senza la chiave, puoi comunque vedere l'interfaccia e testare con i dati mock caricati tramite "Carica dati demo" nel calendario.
 

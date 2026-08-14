@@ -1,65 +1,385 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
 import { loadMockData } from '../data/mockData'
+import VacationTracker from '../components/VacationTracker'
 
 export default function Home() {
     const navigate = useNavigate()
-    const [days, setDays] = useState([])
+    const [calendarDays, setCalendarDays] = useState([])
     const [loading, setLoading] = useState(true)
+    const [nextActivity, setNextActivity] = useState(null)
+    const [currentMonth, setCurrentMonth] = useState(new Date().getMonth())
+    const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
+    const [vacationData, setVacationData] = useState(null)
+    const [vacationActivities, setVacationActivities] = useState([])
 
     const handleLoadMockData = () => {
         loadMockData()
         window.location.reload()
     }
 
-    useEffect(() => {
-        const savedData = localStorage.getItem('palestra_data')
-        const savedSuggestions = localStorage.getItem('palestra_suggestions')
-        
-        if (savedData) {
-            const data = JSON.parse(savedData)
-            const suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : null
-            setDays(generateCalendarDays(data, suggestions))
-        }
-        setLoading(false)
-    }, [])
+    // Ottieni il nome del giorno corrente in italiano
+    const getCurrentDayName = () => {
+        const daysOfWeek = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato']
+        const todayIndex = new Date().getDay()
+        return daysOfWeek[todayIndex]
+    }
 
-    const generateCalendarDays = (data, suggestions) => {
-        const daysOfWeek = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato', 'Domenica']
-        return daysOfWeek.map(day => {
-            const hasWorkout = data.workoutDays?.includes(day) || 
-                (suggestions?.routine?.[day]?.esercizi?.length > 0)
+    // Formatta la data corrente in italiano
+    const getCurrentDateString = () => {
+        const today = new Date()
+        const daysOfWeek = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato']
+        const months = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
+        
+        const dayName = daysOfWeek[today.getDay()]
+        const day = today.getDate()
+        const month = months[today.getMonth()]
+        const year = today.getFullYear()
+        
+        return { dayName, day, month, year, full: `${dayName}, ${day} ${month} ${year}` }
+    }
+
+    // Genera suggerimento ricetta in base al tipo di pasto
+    const getRecipeSuggestion = (mealName) => {
+        const suggestions = {
+            'Colazione': 'Prova a preparare una versione più proteica con uova aggiuntive o proteine in polvere. Combina con frutta di stagione per un apporto vitaminico.',
+            'Spuntino Mattina': 'Per uno spuntino più saziante, aggiungi una fonte di grassi salutari come noci o semi. Ideale per mantenere l\'energia fino a pranzo.',
+            'Pranzo': 'Accompagna il pasto principale con verdure di stagione per un apporto completo di fibre e micronutrienti. Varia le fonti proteiche durante la settimana.',
+            'Spuntino Pomeriggio': 'Scegli fonti di carboidrati complessi per mantenere stabile la glicemia. Aggiungi una fonte proteica per favorire il recupero muscolare.',
+            'Cena': 'Prediligi proteine magre e verdure per la cena. Limita i grassi saturi e i carboidrati semplici per favorire il sonno e il recupero notturno.',
+            'Spuntino Sera': 'Opta per cibi leggeri e facili da digerire. Evita zuccheri semplici che potrebbero disturbare il sonno.'
+        }
+        
+        return suggestions[mealName] || `Per ${mealName.toLowerCase()}, cerca di mantenere un buon equilibrio tra macronutrienti.`
+    }
+
+    // Genera consiglio su cosa portare per l'allenamento
+    const getWorkoutGearSuggestions = (workoutName) => {
+        const suggestions = {
+            'Petto e Tricipiti': ['Asciugamano', 'Borraccia', 'Guanti da palestra', 'Cintura per pesi (opzionale)', 'Crema per le mani'], 
+            'Dorsali e Bicipiti': ['Asciugamano', 'Borraccia', 'Guanti da palestra', 'Cintura per pesi (opzionale)', 'Ginocchiere (opzionale)'],
+            'Gambe': ['Asciugamano', 'Borraccia', 'Cintura per pesi', 'Ginocchiere', 'Scarpette da ginnastica con suola rigida'],
+            'Spalle e Addominali': ['Asciugamano', 'Borraccia', 'Guanti da palestra', 'Tappetino per addominali'],
+            'Full Body': ['Asciugamano', 'Borraccia', 'Guanti da palestra', 'Cambio vestiti completo'],
+            'Riposo Attivo': ['Scarpette da running', 'Borraccia', 'Asciugamano piccolo', 'Tappetino per stretching']
+        }
+        
+        return suggestions[workoutName] || ['Asciugamano e borraccia', 'Guanti da palestra', 'Cambio vestiti']
+    }
+
+    // Navigazione mesi
+    const prevMonth = () => {
+        if (currentMonth === 0) {
+            setCurrentMonth(11)
+            setCurrentYear(currentYear - 1)
+        } else {
+            setCurrentMonth(currentMonth - 1)
+        }
+    }
+
+    const nextMonth = () => {
+        if (currentMonth === 11) {
+            setCurrentMonth(0)
+            setCurrentYear(currentYear + 1)
+        } else {
+            setCurrentMonth(currentMonth + 1)
+        }
+    }
+
+    // Verifica se una data è in un periodo di ferie
+    const isVacationDate = (date, vacationData) => {
+        if (!vacationData?.vacationPeriods) return false
+        
+        const dateStr = date.toISOString().split('T')[0]
+        
+        for (const period of vacationData.vacationPeriods) {
+            if (dateStr >= period.startDate && dateStr <= period.endDate) {
+                return true
+            }
+        }
+        return false
+    }
+
+    // Genera il calendario mensile
+    const generateMonthlyCalendar = (month, year, palestraData, palestraSuggestions, vacationData) => {
+        const daysOfWeek = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato']
+        const monthNames = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 
+                           'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre']
+        
+        // Primo giorno del mese
+        const firstDay = new Date(year, month, 1)
+        // Ultimo giorno del mese
+        const lastDay = new Date(year, month + 1, 0)
+        const daysInMonth = lastDay.getDate()
+        
+        // Giorno della settimana del primo giorno (0 = Domenica, 6 = Sabato)
+        const startingDay = firstDay.getDay()
+        
+        // Giorno corrente
+        const today = new Date()
+        const isCurrentMonth = month === today.getMonth() && year === today.getFullYear()
+        const currentDayOfMonth = isCurrentMonth ? today.getDate() : null
+        
+        // Crea array vuoti per i giorni prima del 1 del mese
+        const emptyDays = []
+        for (let i = 0; i < startingDay; i++) {
+            emptyDays.push(null)
+        }
+        
+        // Crea array dei giorni del mese
+        const monthDays = []
+        for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
+            const date = new Date(year, month, dayNum)
+            const dayName = daysOfWeek[date.getDay()]
+            const dateStr = date.toISOString().split('T')[0]
             
+            // Verifica se c'e' allenamento per questo giorno
+            const hasWorkout = palestraData?.workoutDays?.includes(dayName) ||
+                              (palestraSuggestions?.routine?.[dayName]?.esercizi?.length > 0)
+            
+            // Raccolgo i pasti per questo giorno
             const meals = []
-            if (data.orariPasti) {
-                Object.keys(data.orariPasti).forEach(mealTime => {
-                    if (data.orariPasti[mealTime]?.ora) {
+            if (palestraData?.orariPasti) {
+                Object.keys(palestraData.orariPasti).forEach(mealTime => {
+                    if (palestraData.orariPasti[mealTime]?.ora) {
                         meals.push(mealTime)
                     }
                 })
             }
-            if (suggestions?.dieta?.[day]?.pasti) {
-                Object.keys(suggestions.dieta[day].pasti).forEach(mealTime => {
+            if (palestraSuggestions?.dieta?.[dayName]?.pasti) {
+                Object.keys(palestraSuggestions.dieta[dayName].pasti).forEach(mealTime => {
                     if (!meals.includes(mealTime)) {
                         meals.push(mealTime)
                     }
                 })
             }
             
-            const workoutName = suggestions?.routine?.[day]?.scheda || ''
+            const workoutName = palestraSuggestions?.routine?.[dayName]?.scheda || ''
             
-            return {
-                name: day,
+            // Verifica se e' un giorno di ferie
+            const isVacation = isVacationDate(date, vacationData)
+            
+            // Verifica se ci sono suggerimenti specifici per le ferie per questo giorno
+            const vacationSuggestion = vacationData?.vacationSuggestions?.[dateStr]
+            
+            monthDays.push({
+                number: dayNum,
+                date: date,
+                dateStr: dateStr,
+                dayName: dayName,
+                isCurrentDay: isCurrentMonth && dayNum === currentDayOfMonth,
+                isCurrentMonth: true,
                 hasWorkout,
                 meals,
-                workoutName
-            }
-        })
+                workoutName,
+                isVacation,
+                vacationSuggestion
+            })
+        }
+        
+        // Calcola quanti giorni vuoti servono alla fine
+        const totalCells = emptyDays.length + monthDays.length
+        const remainingCells = (7 - (totalCells % 7)) % 7
+        const trailingEmptyDays = []
+        for (let i = 0; i < remainingCells; i++) {
+            trailingEmptyDays.push(null)
+        }
+        
+        // Combina tutto in settimane
+        const allDays = [...emptyDays, ...monthDays, ...trailingEmptyDays]
+        const weeks = []
+        for (let i = 0; i < allDays.length; i += 7) {
+            weeks.push(allDays.slice(i, i + 7))
+        }
+        
+        return {
+            weeks,
+            monthName: monthNames[month],
+            year: year
+        }
     }
 
-    const handleDayClick = (dayIndex) => {
-        const daysOfWeek = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato', 'Domenica']
-        navigate(`/day/${daysOfWeek[dayIndex]}`)
+    // Calcola la prossima attivita in base all'ora corrente
+    const calculateNextActivity = (currentDayName, palestraData, palestraSuggestions) => {
+        const now = new Date()
+        const currentHour = now.getHours()
+        const currentMinute = now.getMinutes()
+        const currentTime = currentHour * 60 + currentMinute
+
+        // Verifica se oggi c'e' allenamento
+        const hasWorkoutToday = palestraData?.workoutDays?.includes(currentDayName) ||
+                                (palestraSuggestions?.routine?.[currentDayName]?.esercizi?.length > 0)
+
+        // Raccolgo tutti i pasti di oggi con orari
+        const todayMeals = []
+        
+        // Da palestra_data
+        if (palestraData?.orariPasti) {
+            Object.entries(palestraData.orariPasti).forEach(([mealName, mealData]) => {
+                if (mealData?.ora) {
+                    const [hours, minutes] = mealData.ora.split(':').map(Number)
+                    const mealTime = hours * 60 + minutes
+                    todayMeals.push({ 
+                        name: mealName, 
+                        time: mealTime, 
+                        ora: mealData.ora,
+                        cibo: mealData.cibo,
+                        source: 'data' 
+                    })
+                }
+            })
+        }
+
+        // Da suggestions
+        if (palestraSuggestions?.dieta?.[currentDayName]?.pasti) {
+            Object.entries(palestraSuggestions.dieta[currentDayName].pasti).forEach(([mealName, mealData]) => {
+                if (mealData?.ora) {
+                    const [hours, minutes] = mealData.ora.split(':').map(Number)
+                    const mealTime = hours * 60 + minutes
+                    // Evito duplicati
+                    if (!todayMeals.some(m => m.name === mealName)) {
+                        todayMeals.push({ 
+                            name: mealName, 
+                            time: mealTime, 
+                            ora: mealData.ora,
+                            cibo: mealData.cibo,
+                            calorie: mealData.calorie,
+                            grammi: mealData.grammi,
+                            source: 'suggestions' 
+                        })
+                    }
+                }
+            })
+        }
+
+        // Ordina pasti per ora
+        todayMeals.sort((a, b) => a.time - b.time)
+
+        // Trova il prossimo pasto dopo l'ora corrente
+        let nextMeal = null
+        for (const meal of todayMeals) {
+            if (meal.time > currentTime) {
+                nextMeal = meal
+                break
+            }
+        }
+
+        // Se c'e' un pasto prossimo, restituisci quello
+        if (nextMeal) {
+            return {
+                type: 'meal',
+                name: nextMeal.name,
+                ora: nextMeal.ora,
+                cibo: nextMeal.cibo,
+                calorie: nextMeal.calorie,
+                grammi: nextMeal.grammi
+            }
+        }
+
+        // Se non c'e' un pasto prossimo ma c'e' allenamento oggi
+        if (hasWorkoutToday) {
+            return {
+                type: 'workout',
+                name: palestraSuggestions?.routine?.[currentDayName]?.scheda || 'Allenamento',
+                time: '18:00',
+                esercizi: palestraSuggestions?.routine?.[currentDayName]?.esercizi || [],
+                consiglio: palestraSuggestions?.calendario?.[currentDayName]?.suggerimenti?.[0] || ''
+            }
+        }
+
+        // Nessuna attivita trovata
+        return null
+    }
+
+    // Funzione per gestire toggle attività
+    const handleActivityToggle = (date, activityId, isDone) => {
+        // In futuro salvare in localStorage
+        console.log(`Attività ${activityId} per ${date} segnalata come ${isDone ? 'eseguita' : 'non eseguita'}`)
+        // TODO: Implementare salvataggio
+    }
+    
+    // Funzione per aggiungere pasto mangiato
+    const handleMealAdd = (date, description, calories) => {
+        const newMeal = {
+            id: `meal-${Date.now()}`,
+            date,
+            description,
+            calories,
+            done: true,
+            createdAt: new Date().toISOString()
+        }
+        
+        setVacationActivities(prev => [...prev, newMeal])
+        
+        // Salva in localStorage
+        try {
+            const savedActivities = localStorage.getItem('palestra_vacation_activities')
+            const currentActivities = savedActivities ? JSON.parse(savedActivities) : []
+            localStorage.setItem('palestra_vacation_activities', JSON.stringify([...currentActivities, newMeal]))
+        } catch (e) {
+            console.error('Errore salvataggio attività:', e)
+        }
+    }
+    
+    useEffect(() => {
+        const savedData = localStorage.getItem('palestra_data')
+        const savedSuggestions = localStorage.getItem('palestra_suggestions')
+        const savedVacation = localStorage.getItem('palestra_vacation')
+        const savedActivities = localStorage.getItem('palestra_vacation_activities')
+        
+        let palestraData = null
+        let palestraSuggestions = null
+        let vacationData = null
+        let activities = []
+        
+        if (savedData) {
+            palestraData = JSON.parse(savedData)
+        }
+        if (savedSuggestions) {
+            palestraSuggestions = JSON.parse(savedSuggestions)
+        }
+        if (savedVacation) {
+            vacationData = JSON.parse(savedVacation)
+        }
+        if (savedActivities) {
+            activities = JSON.parse(savedActivities)
+        }
+
+        
+        setVacationData(vacationData)
+        setVacationActivities(activities)
+        
+        // Genera calendario mensile
+        const calendar = generateMonthlyCalendar(currentMonth, currentYear, palestraData, palestraSuggestions, vacationData)
+        setCalendarDays(calendar.weeks)
+        
+        // Calcola prossima attivita
+        const dayName = getCurrentDayName()
+        const activity = calculateNextActivity(dayName, palestraData, palestraSuggestions)
+        setNextActivity(activity)
+        
+        setLoading(false)
+    }, [currentMonth, currentYear])
+
+    // Verifica se ci sono dati nel calendario
+    const hasCalendarData = calendarDays.some(week => 
+        week.some(day => day && (day.hasWorkout || day.meals.length > 0 || day.isVacation))
+    )
+
+    const handleDayClick = (day) => {
+        // Naviga al giorno della settimana
+        if (day && day.dayName) {
+            navigate(`/day/${day.dayName}`)
+        }
+    }
+
+    // Formatta l'ora nel formato HH:MM
+    const formatTime = (timeStr) => {
+        if (!timeStr) return ''
+        if (timeStr.includes(':')) {
+            return timeStr
+        }
+        return timeStr
     }
 
     if (loading) {
@@ -72,7 +392,7 @@ export default function Home() {
         )
     }
 
-    const hasData = days.some(d => d.hasWorkout || d.meals.length > 0)
+    const hasData = hasCalendarData
 
     return (
         <div className="container py-4">
@@ -102,6 +422,20 @@ export default function Home() {
                 </div>
             </div>
 
+            {/* Giorno corrente */}
+            <div className="mb-4">
+                <div className="card border-0 shadow-sm bg-primary text-white">
+                    <div className="card-body py-3">
+                        <div className="d-flex align-items-center gap-3">
+                            <i className="bi bi-calendar-range fs-3"></i>
+                            <div>
+                                <h4 className="mb-0">Oggi è <strong>{getCurrentDateString().full}</strong></h4>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
             {/* Messaggio iniziale se non ci sono dati */}
             {!hasData && (
                 <div className="alert alert-info alert-dismissible fade show mb-4">
@@ -117,65 +451,194 @@ export default function Home() {
                 </div>
             )}
 
-            {/* Calendario */}
-            <div className="row g-3">
-                {days.map((day, index) => {
-                    const isWorkoutDay = day.hasWorkout
-                    const bgClass = isWorkoutDay 
-                        ? 'bg-gradient bg-primary bg-opacity-10 border-primary' 
-                        : 'bg-light border-secondary'
-                    const textClass = isWorkoutDay ? 'text-primary' : 'text-secondary'
-                    
-                    return (
-                        <div 
-                            key={index}
-                            className="col-md-3 col-sm-6 col-lg-2"
-                            onClick={() => handleDayClick(index)}
-                            style={{ cursor: 'pointer' }}
-                        >
-                            <div className={`card h-100 ${bgClass} border-0 shadow-sm hover-shadow-lg transition-all`}>
-                                <div className="card-body p-3">
-                                    <div className="d-flex justify-content-between align-items-start mb-2">
-                                        <h5 className={`mb-0 ${textClass} fw-bold`}>
-                                            {day.name}
-                                        </h5>
+            {/* Calendario mensile */}
+            <div className="mb-4">
+                <div className="card border-0 shadow-sm">
+                    <div className="card-body p-3">
+                        {/* Header calendario con navigazione */}
+                        <div className="d-flex justify-content-between align-items-center mb-3">
+                            <button 
+                                className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                onClick={prevMonth}
+                                title="Mese precedente"
+                            >
+                                <i className="bi bi-chevron-left"></i>
+                            </button>
+                            <h5 className="mb-0">
+                                {new Date(currentYear, currentMonth).toLocaleDateString('it-IT', { month: 'long', year: 'numeric' })}
+                            </h5>
+                            <button 
+                                className="btn btn-sm btn-outline-primary d-flex align-items-center gap-1"
+                                onClick={nextMonth}
+                                title="Mese successivo"
+                            >
+                                <i className="bi bi-chevron-right"></i>
+                            </button>
+                        </div>
+                        
+                        {/* Nomi giorni della settimana */}
+                        <div className="row g-1 text-center mb-2">
+                            {['Dom', 'Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab'].map((day, index) => (
+                                <div key={index} className="col">
+                                    <small className="fw-bold text-muted">{day}</small>
+                                </div>
+                            ))}
+                        </div>
+                        
+                        {/* Griglia giorni del mese */}
+                        <div>
+                            {calendarDays.map((week, weekIndex) => (
+                                <div key={weekIndex} className="row g-1 mb-1">
+                                    {week.map((day, dayIndex) => (
+                                        <div 
+                                            key={dayIndex}
+                                            className="col"
+                                            onClick={() => day && handleDayClick(day)}
+                                            style={{ cursor: day ? 'pointer' : 'default', minWidth: '40px' }}
+                                        >
+                                            {day ? (
+                                                <div 
+                                                    className={`p-2 rounded text-center position-relative ${
+                                                        day.isVacation 
+                                                            ? (day.isCurrentDay ? 'bg-warning text-dark fw-bold' : 'bg-warning bg-opacity-20')
+                                                            : (day.isCurrentDay ? 'bg-primary text-white fw-bold' : day.hasWorkout ? 'bg-primary bg-opacity-10' : 'bg-light')
+                                                    }`}
+                                                    style={{ height: '60px', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}
+                                                    title={day.isVacation 
+                                                        ? `Ferie${day.vacationSuggestion ? ' - ' + day.vacationSuggestion.workout.tips : ''}`
+                                                        : day.hasWorkout 
+                                                            ? `Allenamento: ${day.workoutName}`
+                                                            : day.meals.length > 0 
+                                                                ? `Pasti: ${day.meals.join(', ')}`
+                                                                : 'Riposo'
+                                                    }
+                                                >
+                                                    <small className="d-block">{day.number}</small>
+                                                    {day.isVacation && (
+                                                        <small className="d-block" style={{ fontSize: '0.65rem' }}>🏖️</small>
+                                                    )}
+                                                    {!day.isVacation && day.hasWorkout && (
+                                                        <small className="d-block" style={{ fontSize: '0.65rem' }}>🏋️</small>
+                                                    )}
+                                                    {!day.isVacation && day.meals.length > 0 && !day.hasWorkout && (
+                                                        <small className="d-block" style={{ fontSize: '0.65rem' }}>🍽️</small>
+                                                    )}
+                                                    {!day.isVacation && day.hasWorkout && day.meals.length > 0 && (
+                                                        <small className="d-block" style={{ fontSize: '0.65rem' }}>🏋️🍽️</small>
+                                                    )}
+                                                </div>
+                                            ) : (
+                                                <div className="p-2" style={{ height: '60px' }}></div>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {/* Tracciamento Vacanza (se ci sono giorni di ferie in questo mese) */}
+            {vacationData && (
+                <VacationTracker
+                    vacationData={vacationData}
+                    vacationActivities={vacationActivities}
+                    onActivityToggle={handleActivityToggle}
+                    onMealAdd={handleMealAdd}
+                />
+            )}
+
+            {/* Prossima attivita */}
+            {hasData && nextActivity && (
+                <div className="mb-4">
+                    <div className="card border-0 shadow-sm">
+                        <div className="card-body">
+                            <div className="d-flex align-items-center gap-2 mb-3">
+                                <i className={`fs-4 ${nextActivity.type === 'workout' ? 'text-primary' : 'text-success'}`}>
+                                    {nextActivity.type === 'workout' ? '🏋️' : '🍽️'}
+                                </i>
+                                <h5 className="mb-0">
+                                    {nextActivity.type === 'workout' ? 'Prossima Attività: Allenamento' : 'Prossima Attività: Pasto'}
+                                </h5>
+                            </div>
+                            
+                            {nextActivity.type === 'workout' ? (
+                                <div className="row g-3">
+                                    <div className="col-12">
+                                        <div className="d-flex align-items-center gap-2 p-3 bg-light rounded">
+                                            <i className="bi bi-calendar-event text-primary fs-4"></i>
+                                            <div>
+                                                <h6 className="mb-0 fw-bold">{nextActivity.name}</h6>
+                                                <small className="text-muted">Ore: {formatTime(nextActivity.time)}</small>
+                                            </div>
+                                        </div>
                                     </div>
-                                    
-                                    {day.workoutName && (
-                                        <p className="mb-2 small text-muted">
-                                            🏋️ {day.workoutName}
-                                        </p>
-                                    )}
-                                    
-                                    {day.meals.length > 0 && (
-                                        <div className="mt-2">
-                                            <div className="d-flex flex-wrap gap-1">
-                                                {day.meals.slice(0, 3).map((meal, i) => (
-                                                    <span key={i} className="badge bg-success bg-opacity-10 text-success">
-                                                        🥤 {meal}
-                                                    </span>
-                                                ))}
-                                                {day.meals.length > 3 && (
-                                                    <span className="badge bg-secondary bg-opacity-10 text-secondary">
-                                                        +{day.meals.length - 3} pasti
-                                                    </span>
-                                                )}
+                                    {nextActivity.consiglio && (
+                                        <div className="col-12">
+                                            <div className="alert alert-info p-2 mb-0">
+                                                <i className="bi bi-lightbulb me-2"></i>
+                                                <strong>Consiglio IA:</strong> {nextActivity.consiglio}
                                             </div>
                                         </div>
                                     )}
-                                    
-                                    {!day.hasWorkout && day.meals.length === 0 && (
-                                        <div className="text-center text-muted py-3">
-                                            <i className="bi bi-emoji-smile fs-3"></i>
-                                            <p className="mb-0 small">Riposo</p>
+                                    {nextActivity.esercizi && nextActivity.esercizi.length > 0 && (
+                                        <div className="col-12">
+                                            <div className="p-3 bg-light rounded">
+                                                <small className="text-muted">Cosa portare:</small>
+                                                <ul className="mb-0 mt-1 ps-3">
+                                                    {getWorkoutGearSuggestions(nextActivity.name).map((item, index) => (
+                                                        <li key={index}><small>{item}</small></li>
+                                                    ))}
+                                                </ul>
+                                            </div>
                                         </div>
                                     )}
                                 </div>
-                            </div>
+                            ) : (
+                                <div className="row g-3">
+                                    <div className="col-12">
+                                        <div className="d-flex align-items-center gap-2 p-3 bg-light rounded">
+                                            <i className="bi bi-clock text-success fs-4"></i>
+                                            <div>
+                                                <h6 className="mb-0 fw-bold">{nextActivity.name}</h6>
+                                                <small className="text-muted">Ore: {formatTime(nextActivity.ora)}</small>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-12">
+                                        <div className="p-3 bg-light rounded">
+                                            <div className="d-flex align-items-start gap-2">
+                                                <i className="bi bi-egg-fried text-warning fs-4"></i>
+                                                <div>
+                                                    <small className="text-muted d-block mb-1">Ricetta consigliata:</small>
+                                                    <p className="mb-0 small">{nextActivity.cibo}</p>
+                                                    {nextActivity.calorie && (
+                                                        <small className="text-muted mt-1 d-block">
+                                                            <i className="bi bi-fire me-1"></i> {nextActivity.calorie} kcal
+                                                        </small>
+                                                    )}
+                                                    {nextActivity.grammi && (
+                                                        <small className="text-muted d-block">
+                                                            <i className="bi bi-weight me-1"></i> {nextActivity.grammi}
+                                                        </small>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div className="col-12">
+                                        <div className="alert alert-success p-2 mb-0">
+                                            <i className="bi bi-lightbulb me-2"></i>
+                                            <strong>Suggerimento IA:</strong> {getRecipeSuggestion(nextActivity.name)}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
                         </div>
-                    )
-                })}
-            </div>
+                    </div>
+                </div>
+            )}
 
             {/* Suggerimenti rapidi */}
             {hasData && (

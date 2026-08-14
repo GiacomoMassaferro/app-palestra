@@ -364,10 +364,14 @@ export const mockFullData = {
 /**
  * Funzione per caricare i dati mock in localStorage
  * Usa questa funzione per testare l'app senza dover compilare il form
+ * NOTA: Non carica dati ferie mock - l'utente deve inserirli manualmente
  */
 export function loadMockData() {
     localStorage.setItem('palestra_data', JSON.stringify(mockFullData))
     localStorage.setItem('palestra_suggestions', JSON.stringify(mockSuggestions))
+    // Rimuovi eventuali dati ferie mock se presenti
+    localStorage.removeItem('palestra_vacation')
+    localStorage.removeItem('palestra_vacation_activities')
     console.log('Dati mock caricati in localStorage!')
     return {
         palestra_data: mockFullData,
@@ -381,5 +385,7 @@ export function loadMockData() {
 export function clearMockData() {
     localStorage.removeItem('palestra_data')
     localStorage.removeItem('palestra_suggestions')
+    localStorage.removeItem('palestra_vacation')
+    localStorage.removeItem('palestra_vacation_activities')
     console.log('Dati mock rimossi da localStorage!')
 }

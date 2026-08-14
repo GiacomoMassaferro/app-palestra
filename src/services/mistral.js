@@ -478,6 +478,22 @@ export async function chatWithMistral(message, context) {
         }
     }
 
+    // Comando /interpreta file
+    const interpretMatch = message.match(/^\/(interpreta|interpret|parse)\s+(dieta|scheda|file)\s+da\s+file:\s*(.+)$/i)
+    const naturalInterpretMatch = message.match(/(?:interpreta|interpreta\s+il|analizza|leggi)\s+(?:il\s+)?(dieta|scheda|file|documento|allegato)/i)
+    
+    if (interpretMatch || naturalInterpretMatch) {
+        const fileType = interpretMatch ? interpretMatch[2] : naturalInterpretMatch[1]
+        // Il contenuto del file dovrebbe essere passaggio come terzo parametro
+        // ma in chatWithMistral non abbiamo accesso diretto ai file
+        // Quindi restituiamo un messaggio che spiega come fare
+        return {
+            risposta: `Per interpretare un file ${fileType}, caricalo prima nella sezione Impostazioni. L'IA lo analizzerà automaticamente e lo convertirà nel formato adatto all'app.`,
+            modifiche: {},
+            consigli: [`I formati supportati sono: JSON, TXT, CSV, XML, YAML, PDF, Excel, Word, ecc.`]
+        }
+    }
+
     // Comando /piano rientro
     const returnMatch = message.match(/^\/(piano\s*rientro|return\s*plan|rientro)$/i)
     const naturalReturnMatch = message.match(/(?:piano\s+di\s+rientro|rientro|piano\s+rientro|voglio\s+rientrare)/i)

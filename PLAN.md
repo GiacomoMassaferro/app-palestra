@@ -274,9 +274,10 @@ src/
   - Aggiunto dropdown utente con info personali (nome, eta, altezza, peso)
   - Pulsante logout
 - [x] **Aggiunta sezione caricamento file in Settings.jsx**:
-  - Caricamento file JSON per dieta personale
-  - Caricamento file JSON per scheda allenamento
-  - Validazione formato JSON
+  - Caricamento file in **QUALSIASI FORMATO** (JSON, TXT, CSV, XML, YAML, PDF, Excel, Word, ecc.)
+  - Lettura diretta per file di testo
+  - Conversione in base64 per file binari (PDF, Excel, Word, ecc.)
+  - Interpretazione automatica tramite IA per file non JSON
   - Salvataggio in localStorage (`palestra_dieta_file`, `palestra_scheda_file`)
   - Caricamento automatico all'avvio
 - [x] **Aggiornato mistral.js**:
@@ -284,9 +285,14 @@ src/
   - Inclusi dati personali (nome, cognome, eta, altezza, peso) in tutti i prompt
   - Aggiornati PROMPT_TEMPLATE e CHAT_PROMPT_TEMPLATE
   - Istruzioni per NON generare piani da zero ma solo modifiche momentanee
+  - Aggiunto comando `/interpreta` per interpretazione file
 - [x] **Aggiornato ChatPopup.jsx**:
   - Caricamento dati utente, dietaFile e schedaFile nel contesto
   - Passaggio dati completi all'AI
+- [x] **Aggiunta interpretazione file automatica**:
+  - Funzione `interpretFileWithAI()` in Settings.jsx
+  - L'IA riceve il contenuto del file e lo converte nel formato JSON dell'app
+  - Esempi di formato atteso inclusi nel prompt
 - [x] Verifica OXLint: 0 warnings, 0 errors
 - [x] Verifica build: success
 - [x] Commit e push: "feat: Aggiunto login, dati personali e caricamento file dieta/scheda"

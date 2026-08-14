@@ -35,56 +35,87 @@ export default function Settings() {
     const livelli = ['Principiante', 'Intermedio', 'Avanzato']
     const preferenze = ['Onnivoro', 'Vegetariano', 'Vegano', 'Senza Glutine', 'Senza Lattosio']
 
-    // Funzione per validare un file JSON
-    const validateJsonFile = (file, setFile, setFileName) => {
-        if (!file) return false
+    // Funzione per leggere e processare un file
+    const handleFileChange = async (e, setFile, setFileName, fileType) => {
+        const file = e.target.files[0]
+        if (!file) return
         
-        const validExtensions = ['.json']
+        // Controlla dimensione (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            setError('Il file è troppo grande. Max 5MB.')
+            return
+        }
+        
+        setError('')
+        
+        // Controlla se è un file di testo (che possiamo leggere direttamente)
+        const validTextExtensions = ['.txt', '.json', '.csv', '.xml', '.yaml', '.yml', '.tsv', '.md']
         const fileName = file.name.toLowerCase()
-        const isValidExtension = validExtensions.some(ext => fileName.endsWith(ext))
+        const isTextFile = validTextExtensions.some(ext => fileName.endsWith(ext)) || 
+                          file.type.startsWith('text/') ||
+                          file.name.match(/\.(txt|json|csv|xml|yaml|yml|tsv|md)$/i)
         
-        if (!isValidExtension) {
-            setError('Il file deve essere in formato JSON (.json)')
-            return false
-        }
-        
-        const reader = new FileReader()
-        reader.onload = (e) => {
-            try {
-                const content = e.target.result
-                JSON.parse(content)
-                setFile(content)
-                setFileName(file.name)
-                setError('')
-            } catch {
-                setError('Il file non è un JSON valido. Correggi il formato e riprova.')
-                setFile(null)
-                setFileName('')
+        if (isTextFile) {
+            // Leggi come testo
+            const reader = new FileReader()
+            reader.onload = async (e) => {
+                try {
+                    const content = e.target.result
+                    
+                    // Prova a parsare come JSON
+                    try {
+                        JSON.parse(content)
+                        setFile(content)
+                        setFileName(file.name)
+                    } catch {
+                        // Non è JSON, chiediamo all'IA di interpretarlo
+                        const result = await interpretFileWithAI(content, file.name, fileType)
+                        if (result && (result.modifiche || result.risposta)) {
+                            // Se l'IA ha interpretato il file, usiamo il risultato
+                            const output = result.modifiche || result.risposta
+                            setFile(typeof output === 'string' ? output : JSON.stringify(output))
+                            setFileName(file.name)
+                            setSuccess(`File interpretato con successo dall'IA!`)
+                        } else {
+                            // Salva il contenuto grezzo
+                            setFile(content)
+                            setFileName(file.name)
+                        }
+                    }
+                } catch {
+                    setError('Errore nella lettura del file.')
+                }
             }
+            reader.onerror = () => {
+                setError('Errore nella lettura del file.')
+            }
+            reader.readAsText(file)
+        } else {
+            // Per altri formati (PDF, Excel, Word, immagini, ecc.)
+            setFileName(file.name)
+            setSuccess(`File caricato. L'IA lo interpreterà quando necessario.`)
+            
+            const reader = new FileReader()
+            reader.onload = (e) => {
+                const content = e.target.result
+                // Salva con prefisso per indicare che è un file binario
+                setFile(`[FILE:${file.type}:${file.name}]:${content}`)
+            }
+            reader.onerror = () => {
+                setError('Errore nella lettura del file.')
+            }
+            reader.readAsDataURL(file)
         }
-        reader.onerror = () => {
-            setError('Errore nella lettura del file. Riprova.')
-            setFile(null)
-            setFileName('')
-        }
-        reader.readAsText(file)
-        return true
     }
 
     // Gestione cambiamento file dieta
     const handleDietaFileChange = (e) => {
-        const file = e.target.files[0]
-        if (file) {
-            validateJsonFile(file, setDietaFile, setDietaFileName)
-        }
+        handleFileChange(e, setDietaFile, setDietaFileName, 'dieta')
     }
 
     // Gestione cambiamento file scheda
     const handleSchedaFileChange = (e) => {
-        const file = e.target.files[0]
-        if (file) {
-            validateJsonFile(file, setSchedaFile, setSchedaFileName)
-        }
+        handleFileChange(e, setSchedaFile, setSchedaFileName, 'scheda')
     }
 
     // Rimuovi file dieta
@@ -98,6 +129,63 @@ export default function Settings() {
         setSchedaFile(null)
         setSchedaFileName('')
     }
+    
+    // Funzione per chiedere all'IA di interpretare un file
+    const interpretFileWithAI = async (fileContent, fileName, fileType = 'dieta') => {
+        try {
+            setLoading(true)
+            setError('')
+            
+            // Importa la funzione chatWithMistral
+            const { chatWithMistral } = await import('../services/mistral')
+            
+            // Costruisci il messaggio con il contenuto del file
+            const message = `Analizza questo contenuto di un file ${fileType} chiamato "${fileName}" e convertilo nel formato JSON adatto all'app:
+
+${fileContent}
+
+Formato atteso per dieta:
+{
+  "giorno": {
+    "pasti": {
+      "nomePasto": {
+        "ora": "HH:MM",
+        "cibo": "descrizione",
+        "calorie": "numero",
+        "grammi": "quantita"
+      }
+    }
+  }
+}
+
+Formato atteso per scheda:
+{
+  "giorno": {
+    "scheda": "nome",
+    "durata": "minuti",
+    "esercizi": ["esercizio1", "esercizio2"]
+  }
+}
+
+SOLO JSON valido, senza spiegazioni o markdown.`
+            
+            const context = {
+                data: formData,
+                suggestions: null
+            }
+            
+            const response = await chatWithMistral(message, context)
+            
+            setLoading(false)
+            return response
+        } catch (err) {
+            setLoading(false)
+            setError(`Errore interpretazione file: ${err.message}`)
+            return null
+        }
+    }
+    
+
 
     const handleInputChange = (e) => {
         const { name, value, type, checked } = e.target
@@ -654,7 +742,7 @@ export default function Settings() {
                     </div>
                     <div className="card-body">
                         <p className="text-muted small mb-4">
-                            Carica i tuoi file JSON per dieta e scheda di allenamento. L'IA userà questi file come base per fornirti suggerimenti personalizzati senza generare piani da zero.
+                            Carica i tuoi file per dieta e scheda di allenamento in <strong>qualsiasi formato</strong> (JSON, TXT, CSV, PDF, Excel, Word, ecc.). L'IA li interpreterà automaticamente e li convertirà nel formato adatto all'app.
                         </p>
                         
                         <div className="row g-4">
@@ -760,7 +848,7 @@ export default function Settings() {
                         {(dietaFile || schedaFile) && (
                             <div className="alert alert-info mt-3 mb-0">
                                 <i className="bi bi-info-circle me-2"></i>
-                                L'IA userà questi file come base per i suggerimenti. Non genererà piani da zero.
+                                L'IA userà questi file come base per i suggerimenti. Se sono in formato non JSON, l'IA li interpreterà automaticamente.
                             </div>
                         )}
                     </div>

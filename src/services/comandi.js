@@ -23,7 +23,6 @@ function salvaDati(chiave, dati) {
         return false
     }
 }
-
 /**
  * Carica i dati da localStorage
  */
@@ -73,7 +72,7 @@ export function aggiungiFerie(startDate, endDate) {
 
         // Carica ferie esistenti
         let existingVacation = caricaDati('palestra_vacation', { vacationPeriods: [], vacationSuggestions: {} })
-        
+
         // Assicurati che la struttura sia valida
         if (!existingVacation || !Array.isArray(existingVacation.vacationPeriods)) {
             existingVacation = { vacationPeriods: [], vacationSuggestions: {} }
@@ -129,7 +128,7 @@ export function aggiungiFerie(startDate, endDate) {
 export function rimuoviFerie(vacationId) {
     try {
         let existingVacation = caricaDati('palestra_vacation', { vacationPeriods: [], vacationSuggestions: {} })
-        
+
         if (!existingVacation || !Array.isArray(existingVacation.vacationPeriods)) {
             existingVacation = { vacationPeriods: [], vacationSuggestions: {} }
         }
@@ -176,8 +175,7 @@ function generazioneSuggerimentiVacanza(startDate, endDate) {
     const start = new Date(startDate)
     const end = new Date(endDate)
 
-    // Crea una copia della data di inizio per evitare di modificare l'originale
-    for (let d = new Date(start.getTime()); d <= end; d.setDate(d.getDate() + 1)) {
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0]
         suggestions[dateStr] = {
             workout: {
@@ -444,14 +442,14 @@ export function modificaDieta(giorno, pasti) {
 
         // Carica suggerimenti correnti
         let currentSuggestions = caricaDati('palestra_suggestions', { dieta: {}, routine: {}, calendario: {} })
-        
+
         if (!currentSuggestions.dieta) {
             currentSuggestions.dieta = {}
         }
 
         // Applica modifiche (merge)
         const newDieta = { ...currentSuggestions.dieta }
-        newDieta[giorno] = { 
+        newDieta[giorno] = {
             ...newDieta[giorno],
             pasti: pasti.pasti ? { ...pasti.pasti } : { ...pasti }
         }
@@ -516,7 +514,7 @@ export function modificaRoutine(giorno, dati) {
 
         // Carica suggerimenti correnti
         let currentSuggestions = caricaDati('palestra_suggestions', { dieta: {}, routine: {}, calendario: {} })
-        
+
         if (!currentSuggestions.routine) {
             currentSuggestions.routine = {}
         }
@@ -580,7 +578,7 @@ export function applicaModifiche(modifiche) {
         const newDieta = { ...currentSuggestions.dieta }
         if (modifiche.dieta && typeof modifiche.dieta === 'object') {
             Object.entries(modifiche.dieta || {}).forEach(([giorno, dati]) => {
-                newDieta[giorno] = { 
+                newDieta[giorno] = {
                     ...newDieta[giorno],
                     pasti: dati.pasti ? { ...dati.pasti } : {}
                 }
@@ -638,25 +636,24 @@ export function applicaModifiche(modifiche) {
 export function eseguiComando(tipo, parametri = {}) {
     try {
         console.log(`[COMANDO] Eseguo: tipo="${tipo}", parametri=`, parametri)
-        
+
         // Se tipo e' un comando testuale completo (es: "/ferie 15-01 20-01")
         if (typeof tipo === 'string' && tipo.startsWith('/')) {
             // Prova a parsare il comando testuale
-            const commandMatch = tipo.match(/^\/(ferie|pasto|mangiato|attivita|fatto|rientro|dieta|routine|modifiche|aggiungi[-_]?ferie|aggiorna[-_]?piano)\s*(.*)?$/i)
+            const commandMatch = tipo.match(/^\/(ferie|pasto|mangiato|attivita|fatto|rientro|dieta|routine|modifiche)\s*(.*)?$/i)
             if (commandMatch) {
-                const cmdType = commandMatch[1].toLowerCase().replace(/[_-]/g, '')
+                const cmdType = commandMatch[1].toLowerCase()
                 const cmdArgs = commandMatch[2] ? commandMatch[2].trim() : ''
-                
+
                 console.log(`[COMANDO] Parsing testuale: cmdType="${cmdType}", cmdArgs="${cmdArgs}"`)
-                
+
                 // Parsa i parametri dal comando testuale
                 let parsedParametri = {}
-                
+
                 switch (cmdType) {
                     case 'ferie':
-                    case 'aggiuniferie':
                         // Formato: /ferie 15-01 20-01
-                        const dates = cmdArgs.split(/\s+/).filter(Boolean)
+                        const dates = cmdArgs.split(/\s+/)
                         if (dates.length >= 2) {
                             parsedParametri = { startDate: dates[0], endDate: dates[1] }
                             console.log(`[COMANDO] Ferie parsed: startDate="${parsedParametri.startDate}", endDate="${parsedParametri.endDate}"`)
@@ -670,24 +667,23 @@ export function eseguiComando(tipo, parametri = {}) {
                             }
                         }
                         return aggiungiFerie(parsedParametri.startDate, parsedParametri.endDate)
-                    
+
                     case 'pasto':
                     case 'mangiato':
                         parsedParametri = { description: cmdArgs || tipo }
                         console.log(`[COMANDO] Pasto: description="${parsedParametri.description}"`)
                         return registraPasto(parsedParametri.description)
-                    
+
                     case 'attivita':
                     case 'fatto':
                         parsedParametri = { description: cmdArgs || tipo }
                         console.log(`[COMANDO] Attivita: description="${parsedParametri.description}"`)
                         return registraAttivita(parsedParametri.description)
-                    
+
                     case 'rientro':
-                    case 'aggiornapiano':
-                        console.log(`[COMANDO] Rientro: generando piano di rientro`)
-                        return generaPianoRientro(null)
-                    
+                        console.log(`[COMANDO] Rientro: context=`, parametri.context)
+                        return generaPianoRientro(parametri.context)
+
                     default:
                         console.warn(`[COMANDO] Comando testuale non supportato: ${tipo}`)
                         return {
@@ -699,17 +695,11 @@ export function eseguiComando(tipo, parametri = {}) {
                 }
             }
         }
-        
+
         // Comando come oggetto (tipo + parametri separati)
         console.log(`[COMANDO] Switch: tipo="${tipo.toLowerCase()}"`)
-        
-        // Normalizza il tipo di comando
-        const tipoNormalizzato = tipo.toLowerCase().replace(/[_-]/g, '')
-        console.log(`[COMANDO] Normalizzato: tipoNormalizzato="${tipoNormalizzato}"`)
-        
-        switch (tipoNormalizzato) {
+        switch (tipo.toLowerCase()) {
             case 'ferie':
-            case 'aggiuniferie':
                 console.log(`[COMANDO] Ferie: startDate="${parametri.startDate}", endDate="${parametri.endDate}"`)
                 return aggiungiFerie(parametri.startDate, parametri.endDate)
             case 'pasto':
@@ -722,9 +712,8 @@ export function eseguiComando(tipo, parametri = {}) {
                 return registraAttivita(parametri.description, parametri.date, parametri.type)
             case 'rientro':
             case 'piano rientro':
-            case 'aggiornapiano':
-                console.log(`[COMANDO] Rientro: context=`, parametri?.context)
-                return generaPianoRientro(parametri?.context || null)
+                console.log(`[COMANDO] Rientro: context=`, parametri.context)
+                return generaPianoRientro(parametri.context)
             case 'dieta':
                 console.log(`[COMANDO] Dieta: giorno="${parametri.giorno}", pasti=`, parametri.pasti)
                 return modificaDieta(parametri.giorno, parametri.pasti)
@@ -735,10 +724,10 @@ export function eseguiComando(tipo, parametri = {}) {
                 console.log(`[COMANDO] Modifiche: modifiche=`, parametri.modifiche)
                 return applicaModifiche(parametri.modifiche)
             default:
-                console.warn(`[COMANDO] Comando sconosciuto: ${tipo} (normalizzato: ${tipoNormalizzato})`)
+                console.warn(`[COMANDO] Comando sconosciuto: ${tipo}`)
                 return {
                     successo: false,
-                    messaggio: `Comando sconosciuto: ${tipo}. Comandi validi: ferie, pasto, attivita, rientro, dieta, routine, modifiche`,
+                    messaggio: `Comando sconosciuto: ${tipo}`,
                     dati: null,
                     refresh: false
                 }
@@ -776,10 +765,10 @@ export function eseguiComandi(comandi = []) {
 
         for (let i = 0; i < comandi.length; i++) {
             const comando = comandi[i]
-            
+
             // Supporta sia oggetti {tipo, parametri} che stringhe dirette
             let tipo, parametri
-            
+
             if (typeof comando === 'string') {
                 // Comando come stringa (es: "/ferie 15-01 20-01")
                 tipo = comando
@@ -798,16 +787,16 @@ export function eseguiComandi(comandi = []) {
                 })
                 continue
             }
-            
+
             console.log(`[COMANDI] Eseguo comando ${i + 1}/${comandi.length}: tipo="${tipo}", parametri=`, parametri)
-            
+
             const risultato = eseguiComando(tipo, parametri)
             risultati.push(risultato)
-            
+
             if (risultato.refresh) {
                 necessitaRefresh = true
             }
-            
+
             if (!risultato.successo) {
                 erroriDettagliati.push(`Comando ${i + 1} (${tipo}): ${risultato.messaggio}`)
             }
@@ -816,7 +805,7 @@ export function eseguiComandi(comandi = []) {
         // Verifica se tutti i comandi sono andati a buon fine
         const tuttiSuccesso = risultati.every(r => r.successo)
 
-        const messaggio = tuttiSuccesso 
+        const messaggio = tuttiSuccesso
             ? `Tutti i ${comandi.length} comandi eseguiti con successo`
             : `${risultati.filter(r => r.successo).length}/${comandi.length} comandi eseguiti. Errori: ${erroriDettagliati.join('; ')}`
 

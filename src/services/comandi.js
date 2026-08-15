@@ -41,6 +41,107 @@ function caricaDati(chiave, defaultValue = null) {
 // ============================================
 
 /**
+ * Parsa date nel formato GG-MM o GG/MM o GG MM in YYYY-MM-DD
+ * @param {string} dateStr - Data nel formato GG-MM, GG/MM, GG MM, o YYYY-MM-DD
+ * @param {number} year - Anno da usare se non specificato (default: anno corrente)
+ * @returns {string} Data in formato YYYY-MM-DD
+ */
+function parseDate(dateStr, year = new Date().getFullYear()) {
+    if (!dateStr) return null
+    
+    // Se già in formato YYYY-MM-DD, restituisci così com'è
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+        // Valida la data
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime())) {
+            return dateStr
+        }
+        return null
+    }
+    
+    // Rimuovi spazi e sostituisci / con -
+    const cleaned = dateStr.trim().replace(/\/|\s+/g, '-')
+    
+    // Formato GG-MM
+    const match = cleaned.match(/^(\d{1,2})-(\d{1,2})$/)
+    if (match) {
+        const day = match[1].padStart(2, '0')
+        const month = match[2].padStart(2, '0')
+        const dateStr = `${year}-${month}-${day}`
+        // Valida che la data sia valida
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime()) && 
+            date.getDate() == parseInt(day) && 
+            date.getMonth() + 1 == parseInt(month)) {
+            return dateStr
+        }
+        return null
+    }
+    
+    // Formato GG-MM-YYYY o GG-MM-YY
+    const matchFull = cleaned.match(/^(\d{1,2})-(\d{1,2})-(?:(\d{2})|(\d{4}))$/)
+    if (matchFull) {
+        const day = matchFull[1].padStart(2, '0')
+        const month = matchFull[2].padStart(2, '0')
+        const fullYear = matchFull[4] || (matchFull[3] ? `20${matchFull[3]}` : String(year))
+        const dateStr = `${fullYear}-${month}-${day}`
+        // Valida la data
+        const date = new Date(dateStr)
+        if (!isNaN(date.getTime()) && 
+            date.getDate() == parseInt(day) && 
+            date.getMonth() + 1 == parseInt(month) &&
+            date.getFullYear() == parseInt(fullYear)) {
+            return dateStr
+        }
+        return null
+    }
+    
+    return null
+}
+
+/**
+ * Parsa un range di date da stringa
+ * Formati supportati:
+ * - "GG-MM GG-MM" (es: "15-09 20-09")
+ * - "GG/MM GG/MM" (es: "15/09 20/09")
+ * - "GG MM GG MM" (es: "15 09 20 09")
+ * - "GG-MM-YYYY GG-MM-YYYY" (es: "15-09-2026 20-09-2026")
+ * @param {string} dateRange - Stringa con il range di date
+ * @returns {object|null} Oggetto con startDate e endDate in formato YYYY-MM-DD
+ */
+function parseDateRange(dateRange) {
+    if (!dateRange) return null
+    
+    const year = new Date().getFullYear()
+    
+    // Prova formato "GG-MM GG-MM" o "GG/MM GG/MM"
+    const match1 = dateRange.match(/^(\d{1,2}[-/]\d{1,2})\s+(\d{1,2}[-/]\d{1,2})$/)
+    if (match1) {
+        const start = parseDate(match1[1], year)
+        const end = parseDate(match1[2], year)
+        if (start && end) return { startDate: start, endDate: end }
+    }
+    
+    // Prova formato "GG MM GG MM"
+    const parts = dateRange.split(/\s+/).filter(Boolean)
+    if (parts.length === 4) {
+        const start = parseDate(`${parts[0]}-${parts[1]}`, year)
+        const end = parseDate(`${parts[2]}-${parts[3]}`, year)
+        if (start && end) return { startDate: start, endDate: end }
+    }
+    
+    // Prova formato "GG-MM-YYYY GG-MM-YYYY"
+    const match2 = dateRange.match(/^(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})\s+(\d{1,2}[-/]\d{1,2}[-/]\d{2,4})$/)
+    if (match2) {
+        const start = parseDate(match2[1])
+        const end = parseDate(match2[2])
+        if (start && end) return { startDate: start, endDate: end }
+    }
+    
+    return null
+}
+
+/**
  * Aggiunge un periodo di ferie
  * @param {string} startDate - Data inizio nel formato YYYY-MM-DD
  * @param {string} endDate - Data fine nel formato YYYY-MM-DD
@@ -58,8 +159,12 @@ export function aggiungiFerie(startDate, endDate) {
             }
         }
 
-        const start = new Date(startDate)
-        const end = new Date(endDate)
+        // Parsa le date se non sono in formato YYYY-MM-DD
+        const normalizedStart = parseDate(startDate) || startDate
+        const normalizedEnd = parseDate(endDate) || endDate
+
+        const start = new Date(normalizedStart)
+        const end = new Date(normalizedEnd)
 
         if (start > end) {
             return {
@@ -97,7 +202,7 @@ export function aggiungiFerie(startDate, endDate) {
         if (salvaDati('palestra_vacation', updatedVacation)) {
             return {
                 successo: true,
-                messaggio: `Ferie aggiunte: dal ${startDate} al ${endDate}`,
+                messaggio: `Ferie aggiunte: dal ${normalizedStart} al ${normalizedEnd}`,
                 dati: updatedVacation,
                 refresh: true
             }
@@ -654,16 +759,16 @@ export function eseguiComando(tipo, parametri = {}) {
                     case 'ferie':
                     case 'aggiuniferie':
                     case 'aggiungiferie':
-                        // Formato: /ferie 15-01 20-01
-                        const dates = cmdArgs.split(/\s+/).filter(Boolean)
-                        if (dates.length >= 2) {
-                            parsedParametri = { startDate: dates[0], endDate: dates[1] }
+                        // Parsa il range di date
+                        const dateRange = parseDateRange(cmdArgs)
+                        if (dateRange && dateRange.startDate && dateRange.endDate) {
+                            parsedParametri = dateRange
                             console.log(`[COMANDO] Ferie parsed: startDate="${parsedParametri.startDate}", endDate="${parsedParametri.endDate}"`)
                         } else {
                             console.warn(`[COMANDO] Formato date non valido per ferie: "${cmdArgs}"`)
                             return {
                                 successo: false,
-                                messaggio: `Formato date non valido. Usa: /ferie GG-MM GG-MM (es: /ferie 15-01 20-01)`,
+                                messaggio: `Formato date non valido. Usa: /ferie GG-MM GG-MM (es: /ferie 15-09 20-09) o /ferie 15 09 20 09`,
                                 dati: null,
                                 refresh: false
                             }

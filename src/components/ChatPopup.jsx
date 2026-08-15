@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { chatWithMistral } from '../services/mistral'
+import { eseguiComandi, applicaModifiche as applicaModificheDaComandi } from '../services/comandi'
 
 export default function ChatPopup() {
     const [isOpen, setIsOpen] = useState(false)
@@ -51,24 +52,31 @@ export default function ChatPopup() {
         setLoading(true)
 
         try {
+            console.log(`[ChatPopup] Invio messaggio:`, userMessage)
+            
             // Chiama l'API Mistral con il messaggio e il contesto
             const response = await chatWithMistral(userMessage, context)
+            
+            console.log(`[ChatPopup] Risposta AI:`, response)
             
             // Formatta la risposta del bot
             const botMessage = {
                 text: response.risposta || 'Grazie per la tua domanda. Ho elaborato alcune modifiche per il tuo piano.',
                 sender: 'bot',
                 timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                modifiche: response.modifiche,
-                consigli: response.consigli,
+                modifiche: response.modifiche || {},
+                consigli: response.consigli || [],
+                comandi: response.comandi || [],
                 vacationData: response.vacationData,
-                refreshPage: response.refreshPage
+                refreshPage: response.refreshPage || response.refresh || false
             }
+            
+            console.log(`[ChatPopup] Messaggio bot formattato:`, botMessage)
             
             setMessages(prev => [...prev, botMessage])
             
             // Se c'è la richiesta di refresh, ricarica la pagina dopo un breve delay
-            if (response.refreshPage) {
+            if (response.refreshPage || response.refresh) {
                 setTimeout(() => {
                     window.location.reload()
                 }, 1500)
@@ -111,12 +119,19 @@ export default function ChatPopup() {
     }
 
     /**
-     * Applica le modifiche suggerite dal bot al piano corrente
+     * Esegue i comandi e applica le modifiche suggerite dal bot
      */
-    const applyModifiche = (modifiche, messageIndex) => {
-        if (!modifiche) {
+    const applyModifiche = (modifiche, messageIndex, comandi = []) => {
+        console.log(`[applyModifiche] Chiamato con:`, { modifiche, comandi })
+        
+        // Assicurati che comandi sia un array
+        const comandiArray = Array.isArray(comandi) ? comandi : []
+        
+        // Se non ci sono modifiche ne' comandi
+        if (!modifiche && comandiArray.length === 0) {
+            console.log(`[applyModifiche] Nessuna modifica o comando da applicare`)
             setMessages(prev => [...prev, {
-                text: '❌ Nessuna modifica da applicare.',
+                text: '❌ Nessuna modifica o comando da applicare.',
                 sender: 'system',
                 timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                 isError: true
@@ -125,68 +140,107 @@ export default function ChatPopup() {
         }
         
         try {
-            // Carica i dati correnti da localStorage
-            const savedSuggestions = localStorage.getItem('palestra_suggestions')
-            const currentSuggestions = savedSuggestions ? JSON.parse(savedSuggestions) : { dieta: {}, routine: {}, calendario: {} }
-
-            // Applica le modifiche alla dieta (merge)
-            const newDieta = { ...currentSuggestions.dieta }
-            if (modifiche.dieta && typeof modifiche.dieta === 'object') {
-                Object.entries(modifiche.dieta || {}).forEach(([giorno, pasti]) => {
-                    newDieta[giorno] = { 
-                        ...newDieta[giorno],
-                        pasti: pasti.pasti ? { ...pasti.pasti } : {}
-                    }
-                })
-            }
-
-            // Applica le modifiche alla routine (merge)
-            const newRoutine = { ...currentSuggestions.routine }
-            if (modifiche.routine && typeof modifiche.routine === 'object') {
-                Object.entries(modifiche.routine || {}).forEach(([giorno, dati]) => {
-                    newRoutine[giorno] = dati ? { ...dati } : {}
-                })
-            }
-
-            // Crea il nuovo oggetto suggerimenti
-            const updatedSuggestions = {
-                ...currentSuggestions,
-                dieta: newDieta,
-                routine: newRoutine
-            }
-
-            // Salva in localStorage
-            localStorage.setItem('palestra_suggestions', JSON.stringify(updatedSuggestions))
-
-            // Aggiorna il contesto locale
-            setContext(prev => ({
-                ...prev,
-                suggestions: updatedSuggestions
-            }))
-
-            // Aggiorna i messaggi per mostrare che le modifiche sono state applicate
-            setMessages(prev => prev.map((msg, idx) => {
-                if (idx === messageIndex && msg.sender === 'bot') {
-                    return {
-                        ...msg,
-                        applied: true
-                    }
-                }
-                return msg
-            }))
-
-            // Mostra notifica
-            setMessages(prev => [...prev, {
-                text: '✅ Modifiche applicate con successo!',
-                sender: 'system',
-                timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                isSuccess: true
-            }])
+            let needsRefresh = false
             
-            // Ricarica la pagina dopo un breve delay per aggiornare il calendario
-            setTimeout(() => {
-                window.location.reload()
-            }, 1000)
+            // Se ci sono comandi da eseguire
+            if (comandiArray.length > 0) {
+                try {
+                    const risultatoComandi = eseguiComandi(comandiArray)
+                    
+                    if (!risultatoComandi || typeof risultatoComandi !== 'object') {
+                        setMessages(prev => [...prev, {
+                            text: '❌ Risposta non valida dall esecuzione dei comandi',
+                            sender: 'system',
+                            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                            isError: true
+                        }])
+                        return
+                    }
+                    
+                    if (!risultatoComandi.successo) {
+                        setMessages(prev => [...prev, {
+                            text: `❌ Errore nell'esecuzione dei comandi: ${risultatoComandi.messaggio || 'Errore sconosciuto'}`,
+                            sender: 'system',
+                            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                            isError: true
+                        }])
+                        return
+                    }
+                    
+                    // Mostra notifica per comandi eseguiti
+                    setMessages(prev => [...prev, {
+                        text: `✅ ${risultatoComandi.messaggio || 'Comandi eseguiti'}`,
+                        sender: 'system',
+                        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                        isSuccess: true
+                    }])
+                    
+                    if (risultatoComandi.refresh) {
+                        needsRefresh = true
+                    }
+                } catch (comandiError) {
+                    console.error('[ChatPopup] Errore in eseguiComandi:', comandiError)
+                    setMessages(prev => [...prev, {
+                        text: `❌ Errore critico: ${comandiError.message || String(comandiError)}`,
+                        sender: 'system',
+                        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                        isError: true
+                    }])
+                    return
+                }
+            }
+            
+            // Se ci sono modifiche alla dieta/routine da applicare
+            if (modifiche && Object.keys(modifiche).length > 0) {
+                // Usa la funzione da comandi.js per applicare le modifiche
+                const risultato = applicaModificheDaComandi(modifiche)
+                
+                if (!risultato.successo) {
+                    setMessages(prev => [...prev, {
+                        text: `❌ Errore nell'applicazione delle modifiche: ${risultato.messaggio}`,
+                        sender: 'system',
+                        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                        isError: true
+                    }])
+                    return
+                }
+
+                // Aggiorna il contesto locale
+                setContext(prev => ({
+                    ...prev,
+                    suggestions: risultato.dati
+                }))
+
+                // Aggiorna i messaggi per mostrare che le modifiche sono state applicate
+                setMessages(prev => prev.map((msg, idx) => {
+                    if (idx === messageIndex && msg.sender === 'bot') {
+                        return {
+                            ...msg,
+                            applied: true
+                        }
+                    }
+                    return msg
+                }))
+
+                // Mostra notifica
+                setMessages(prev => [...prev, {
+                    text: '✅ Modifiche applicate con successo!',
+                    sender: 'system',
+                    timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                    isSuccess: true
+                }])
+                
+                if (risultato.refresh) {
+                    needsRefresh = true
+                }
+            }
+            
+            // Ricarica la pagina SE e SOLO SE e' necessario
+            if (needsRefresh) {
+                setTimeout(() => {
+                    window.location.reload()
+                }, 1000)
+            }
 
         } catch (err) {
             console.error('Errore nell applicazione delle modifiche:', err)
@@ -366,18 +420,21 @@ export default function ChatPopup() {
                                                         </div>
                                                     )}
                                                     
-                                                    {/* Pulsante Applica modifiche - solo se ci sono modifiche */}
-                                                    {msg.modifiche && Object.keys(msg.modifiche || {}).length > 0 && (
+                                                    {/* Pulsante Conferma - solo se ci sono modifiche o comandi */}
+                                                    {(msg.modifiche && Object.keys(msg.modifiche || {}).length > 0) || (msg.comandi && msg.comandi.length > 0) ? (
                                                         <div className="mt-2 text-end">
                                                             <button
                                                                 className="btn btn-sm btn-success"
-                                                                onClick={() => applyModifiche(msg.modifiche, index)}
+                                                                onClick={() => {
+                                                                    console.log(`[ChatPopup] Bottone Conferma cliccato per messaggio ${index}`)
+                                                                    applyModifiche(msg.modifiche, index, msg.comandi)
+                                                                }}
                                                                 disabled={msg.applied}
                                                             >
-                                                                {msg.applied ? '✅ Applicato!' : '✓ Applica modifiche'}
+                                                                {msg.applied ? '✅ Eseguito!' : '✓ Conferma'}
                                                             </button>
                                                         </div>
-                                                    )}
+                                                    ) : null}
                                                 </div>
                                             )}
                                             

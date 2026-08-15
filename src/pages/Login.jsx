@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 
@@ -24,10 +24,12 @@ export default function Login() {
     const [error, setError] = useState(null)
     const [loading, setLoading] = useState(false)
 
-    if (isAuthenticated) {
-        navigate('/')
-        return null
-    }
+    // Reindirizza a home se l'utente è già autenticato
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate('/')
+        }
+    }, [isAuthenticated, navigate])
 
     const handleLoginChange = (e) => {
         const { name, value } = e.target
@@ -97,7 +99,10 @@ export default function Login() {
         try {
             const result = loginWithCredentials(loginData.email, loginData.password)
             if (result.success) {
-                navigate('/')
+                // Usa setTimeout per evitare il conflitto di rendering con BrowserRouter
+                setTimeout(() => {
+                    navigate('/')
+                }, 0)
             } else {
                 setError(result.error)
             }

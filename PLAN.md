@@ -132,6 +132,22 @@ src/
 
 # Changelog Giornaliero
 
+## 2026-08-15
+- [x] Aggiunto file `src/services/comandi.js` con tutti i comandi per modificare il calendario (ferie, pasti, attivita, dieta, routine, rientro)
+- [x] Aggiunto file `ISTRUZIONI.md` con istruzioni complete per l'uso dei comandi
+- [x] Modificato `src/services/mistral.js` per includere invito ad usare ISTRUZIONI.md nel system prompt
+- [x] Modificato `src/services/mistral.js` per restituire il campo `comandi` in tutte le risposte
+- [x] Modificato `src/components/ChatPopup.jsx` per importare `eseguiComandi` e `applicaModifiche` da comandi.js
+- [x] Aggiornato bottone "Conferma" in ChatPopup.jsx per eseguire i comandi suggeriti dal chatbot
+- [x] Aggiornato `handleSendMessage` per includere i comandi nella risposta del bot
+- [x] **Fixato reload pagina**: Corretto timer duplicato in `applyModifiche` per evitare reload multipli
+- [x] **Fixato errore React 19 in Login.jsx**: Sostituito `navigate` durante render con `useEffect`
+- [x] **Fixato esecuzione comandi**: Aggiunto supporto per comandi testuali e stringhe in `eseguiComandi` e `eseguiComando`, gestione errori robusta in `ChatPopup.jsx`
+- [x] **Fixato parsing JSON**: Rafforzato `safeJsonParse` per estrarre JSON da risposte tronche o con testo prima, aumentato `max_tokens` a 16384, rafforzato template CHAT_PROMPT_TEMPLATE
+- [x] **Aggiunto debug logging**: Console.log per tracciare l'esecuzione dei comandi in comandi.js, applyModifiche e handleSendMessage
+- [x] Verificato OXLint: 0 warnings, 0 errors
+- [x] Verificato build: success
+
 ## 2025-08-13
 - [x] Creazione dati mock in `src/data/mockData.js`
 - [x] Aggiornamento `DayDetails.jsx` per usare suggerimenti da localStorage

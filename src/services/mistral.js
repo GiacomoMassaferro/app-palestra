@@ -59,7 +59,7 @@ function cleanJsonString(str) {
  */
 function safeJsonParse(str, fallback = null) {
     if (!str || typeof str !== 'string') {
-        return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [] }
+        return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [], comandi: [], refresh: false }
     }
     
     try {
@@ -67,7 +67,7 @@ function safeJsonParse(str, fallback = null) {
 
         // Se la stringa pulita è vuota, restituisci fallback
         if (!cleaned || cleaned.trim() === '') {
-            return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [] }
+            return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [], comandi: [], refresh: false }
         }
 
         // Verifica che inizi con {
@@ -86,7 +86,7 @@ function safeJsonParse(str, fallback = null) {
                 }
             }
             if (fallback) return fallback
-            return { risposta: "Risposta non valida", modifiche: {}, consigli: [] }
+            return { risposta: "Risposta non valida", modifiche: {}, consigli: [], comandi: [], refresh: false }
         }
 
         // Prova a parsare tutto
@@ -98,7 +98,7 @@ function safeJsonParse(str, fallback = null) {
         }
         
         // Se non è un oggetto, restituisci fallback
-        return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [] }
+        return fallback || { risposta: "Risposta non valida", modifiche: {}, consigli: [], comandi: [], refresh: false }
         
     } catch (e) {
         console.warn('[JSON Parser] Errore:', e.message)
@@ -117,7 +117,7 @@ function safeJsonParse(str, fallback = null) {
             }
         }
 
-        return fallback || { risposta: "Risposta non valida. La risposta potrebbe essere troncata o malformata.", modifiche: {}, consigli: [] }
+        return fallback || { risposta: "Risposta non valida. La risposta potrebbe essere troncata o malformata.", modifiche: {}, consigli: [], comandi: [], refresh: false }
     }
 }
 
@@ -137,6 +137,17 @@ Il tuo ruolo è SOLO quello di:
 2. Proporre modifiche momentanee (ad esempio per ferie, malattia, ecc.)
 3. Adattare i piani esistenti alle nuove situazioni
 4. Fornire consigli generali su allenamento e alimentazione
+
+IMPORTANTE: Per modificare il calendario, USa il FILE ISTRUZIONI.md allegato per capire quali comandi utilizzare.
+Questo file contiene tutti i comandi disponibili e le istruzioni dettagliate su come utilizzarli per modificare il calendario.
+Se l'utente chiede di modificare qualcosa, devi usare i comandi descrittin in ISTRUZIONI.md e restituire UNICAMENTE un oggetto JSON valido con:
+{
+  "risposta": "testo risposta",
+  "modifiche": {},
+  "consigli": [],
+  "comandi": []
+}
+NON generare codice, markdown o spiegazioni. SOLO JSON valido.
 
 Genera UNICAMENTE un oggetto JSON valido, SENZA:
 - Testate di codice
@@ -221,7 +232,9 @@ export async function generateSuggestions(data) {
         return {
             risposta: "Chiave API Mistral non configurata. Aggiungi VITE_MISTRAL_API_KEY al file .env",
             modifiche: {},
-            consigli: []
+            consigli: [],
+            comandi: [],
+            refresh: false
         }
     }
 
@@ -240,7 +253,7 @@ export async function generateSuggestions(data) {
         model: 'mistral-tiny',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 8192,
+        max_tokens: 16384,
         top_p: 0.9,
         response_format: { type: 'json_object' }
     }
@@ -274,7 +287,9 @@ export async function generateSuggestions(data) {
         return {
             risposta: "Errore di connessione con l'AI",
             modifiche: {},
-            consigli: []
+            consigli: [],
+            comandi: [],
+            refresh: false
         }
     }
 }
@@ -302,6 +317,19 @@ IMPORTANTE:
 - Fornisci SOLO suggerimenti, modifiche momentanee e adattamenti.
 - Se l'utente chiede consigli generali, forniscili basandoti sui suoi dati personali (eta, altezza, peso).
 
+USA il FILE ISTRUZIONI.md allegato per conoscere i comandi disponibili e come usarli per compiere i tuoi task.
+
+DEVI restituire UNICAMENTE un oggetto JSON valido con questa struttura:
+{
+  "risposta": "string",
+  "modifiche": {},
+  "consigli": [],
+  "comandi": [{"tipo": "nomeComando", "parametri": {}}],
+  "refresh": false
+}
+
+COMANDI VALIDI: ferie, pasto, mangiato, attivita, fatto, rientro, dieta, routine, modifiche
+
 Analizza la richiesta e fornisci suggerimenti in formato JSON:
 {
   "risposta": "testo risposta",
@@ -320,7 +348,9 @@ export async function chatWithMistral(message, context) {
         return {
             risposta: "Chiave API Mistral non configurata. Aggiungi VITE_MISTRAL_API_KEY al file .env",
             modifiche: {},
-            consigli: []
+            consigli: [],
+            comandi: [],
+            refresh: false
         }
     }
 
@@ -383,7 +413,9 @@ export async function chatWithMistral(message, context) {
             return { 
                 risposta: "Formati accettati: '/ferie 15-08 25-08' OPPURE 'voglio ferie dal 14 al 25 agosto' OPPURE 'ferie 14 agosto 25 agosto'", 
                 modifiche: {}, 
-                consigli: [] 
+                consigli: [],
+                comandi: [],
+                refresh: false
             }
         }
         
@@ -417,8 +449,14 @@ export async function chatWithMistral(message, context) {
             risposta: `✅ Ferie aggiunte: dal ${startDate} al ${endDate}. Piano generato automaticamente!`,
             modifiche: {},
             consigli: ["Traccia attivita e pasti nella sezione Vacanza. Ricarica la pagina per vedere le modifiche."],
+            comandi: [
+                {
+                    tipo: "ferie",
+                    parametri: { startDate, endDate }
+                }
+            ],
             vacationData: updatedVacation,
-            refreshPage: true
+            refresh: true
         }
     }
 
@@ -442,13 +480,22 @@ export async function chatWithMistral(message, context) {
             return {
                 risposta: `Pasto registrato: "${description.trim()}"`,
                 modifiche: {},
-                consigli: ["L'IA terra conto di questo per il piano di rientro"]
+                consigli: ["L'IA terra conto di questo per il piano di rientro"],
+                comandi: [
+                    {
+                        tipo: "pasto",
+                        parametri: { description: description.trim(), date: new Date().toISOString().split('T')[0] }
+                    }
+                ],
+                refresh: false
             }
         } catch (e) {
             return {
                 risposta: `Errore nel registrare il pasto: ${e.message}`,
                 modifiche: {},
-                consigli: []
+                consigli: [],
+                comandi: [],
+                refresh: false
             }
         }
     }
@@ -473,13 +520,22 @@ export async function chatWithMistral(message, context) {
             return {
                 risposta: `Attivita registrata: "${description.trim()}"`,
                 modifiche: {},
-                consigli: ["Ottimo lavoro! Continua cosi"]
+                consigli: ["Ottimo lavoro! Continua cosi"],
+                comandi: [
+                    {
+                        tipo: "attivita",
+                        parametri: { description: description.trim(), date: new Date().toISOString().split('T')[0], type: 'workout' }
+                    }
+                ],
+                refresh: false
             }
         } catch (e) {
             return {
                 risposta: `Errore nel registrare l'attivita: ${e.message}`,
                 modifiche: {},
-                consigli: []
+                consigli: [],
+                comandi: [],
+                refresh: false
             }
         }
     }
@@ -496,7 +552,9 @@ export async function chatWithMistral(message, context) {
         return {
             risposta: `Per interpretare un file ${fileType}, caricalo prima nella sezione Impostazioni. L'IA lo analizzerà automaticamente e lo convertirà nel formato adatto all'app.`,
             modifiche: {},
-            consigli: [`I formati supportati sono: JSON, TXT, CSV, XML, YAML, PDF, Excel, Word, ecc.`]
+            consigli: [`I formati supportati sono: JSON, TXT, CSV, XML, YAML, PDF, Excel, Word, ecc.`],
+            comandi: [],
+            refresh: false
         }
     }
 
@@ -530,13 +588,22 @@ export async function chatWithMistral(message, context) {
                 risposta: `Piano di rientro generato per 7 giorni!`,
                 modifiche: {},
                 consigli: [returnPlan.notes],
-                returnPlan
+                comandi: [
+                    {
+                        tipo: "rientro",
+                        parametri: { context: { data: context } }
+                    }
+                ],
+                returnPlan,
+                refresh: true
             }
         } catch (e) {
             return {
                 risposta: `Errore nel generare il piano di rientro: ${e.message}`,
                 modifiche: {},
-                consigli: []
+                consigli: [],
+                comandi: [],
+                refresh: false
             }
         }
     }
@@ -552,7 +619,7 @@ export async function chatWithMistral(message, context) {
         model: 'mistral-tiny',
         messages: [{ role: 'user', content: prompt }],
         temperature: 0.7,
-        max_tokens: 8192,
+        max_tokens: 16384,
         top_p: 0.9,
         response_format: { type: 'json_object' }
     }
@@ -572,7 +639,9 @@ export async function chatWithMistral(message, context) {
             return {
                 risposta: `Errore: ${errorData.message || 'Impossibile contattare l AI'}`,
                 modifiche: {},
-                consigli: []
+                consigli: [],
+                comandi: [],
+                refresh: false
             }
         }
 
@@ -586,7 +655,9 @@ export async function chatWithMistral(message, context) {
         return {
             risposta: "Impossibile connettersi all'AI",
             modifiche: {},
-            consigli: []
+            consigli: [],
+            comandi: [],
+            refresh: false
         }
     }
 }
@@ -596,7 +667,8 @@ function generateLocalSuggestions(startDate, endDate) {
     const start = new Date(startDate)
     const end = new Date(endDate)
     
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+    // Crea una copia della data di inizio per evitare di modificare l'originale
+    for (let d = new Date(start.getTime()); d <= end; d.setDate(d.getDate() + 1)) {
         const dateStr = d.toISOString().split('T')[0]
         suggestions[dateStr] = {
             workout: {

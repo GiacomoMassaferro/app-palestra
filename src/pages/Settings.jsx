@@ -230,8 +230,8 @@ SOLO JSON valido, senza spiegazioni o markdown.`
         }
         if (savedDietaFile) {
             try {
-                JSON.parse(savedDietaFile)
-                setDietaFile(savedDietaFile)
+                const parsed = JSON.parse(savedDietaFile)
+                setDietaFile(parsed)
                 setDietaFileName('dieta.json')
             } catch (e) {
                 console.error('Errore parsing dieta file:', e)
@@ -239,8 +239,8 @@ SOLO JSON valido, senza spiegazioni o markdown.`
         }
         if (savedSchedaFile) {
             try {
-                JSON.parse(savedSchedaFile)
-                setSchedaFile(savedSchedaFile)
+                const parsed = JSON.parse(savedSchedaFile)
+                setSchedaFile(parsed)
                 setSchedaFileName('scheda.json')
             } catch (e) {
                 console.error('Errore parsing scheda file:', e)

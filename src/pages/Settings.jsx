@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
+import { loadFullTestProfile, clearTestProfile } from '../data/mockData'
 
 export default function Settings() {
     const navigate = useNavigate()
@@ -230,18 +231,30 @@ SOLO JSON valido, senza spiegazioni o markdown.`
         }
         if (savedDietaFile) {
             try {
-                const parsed = JSON.parse(savedDietaFile)
-                setDietaFile(parsed)
-                setDietaFileName('dieta.json')
+                // Se il file e' binario (inizia con [FILE:), non parsarlo
+                if (savedDietaFile.startsWith('[FILE:')) {
+                    setDietaFile(savedDietaFile)
+                    setDietaFileName('dieta_file.bin')
+                } else {
+                    const parsed = JSON.parse(savedDietaFile)
+                    setDietaFile(parsed)
+                    setDietaFileName('dieta.json')
+                }
             } catch (e) {
                 console.error('Errore parsing dieta file:', e)
             }
         }
         if (savedSchedaFile) {
             try {
-                const parsed = JSON.parse(savedSchedaFile)
-                setSchedaFile(parsed)
-                setSchedaFileName('scheda.json')
+                // Se il file e' binario (inizia con [FILE:), non parsarlo
+                if (savedSchedaFile.startsWith('[FILE:')) {
+                    setSchedaFile(savedSchedaFile)
+                    setSchedaFileName('scheda_file.bin')
+                } else {
+                    const parsed = JSON.parse(savedSchedaFile)
+                    setSchedaFile(parsed)
+                    setSchedaFileName('scheda.json')
+                }
             } catch (e) {
                 console.error('Errore parsing scheda file:', e)
             }
@@ -413,6 +426,19 @@ SOLO JSON valido, senza spiegazioni o markdown.`
         if (formData.durataAllenamento) completed++
         
         return Math.round((completed / total) * 100)
+    }
+
+    // Funzioni per profili test
+    const handleLoadFullTestProfile = () => {
+        loadFullTestProfile()
+        setSuccess('Profilo test completo caricato! Ricarica la pagina per vedere i dati.')
+        setTimeout(() => setSuccess(''), 3000)
+    }
+
+    const handleClearTestProfile = () => {
+        clearTestProfile()
+        setSuccess('Dati svuotati! Ora hai un profilo vuoto per i test.')
+        setTimeout(() => setSuccess(''), 3000)
     }
 
     return (
@@ -897,6 +923,35 @@ SOLO JSON valido, senza spiegazioni o markdown.`
                                 </>
                             )}
                         </button>
+                    </div>
+                </div>
+
+                {/* Sezione Test - Profili per testing */}
+                <div className="card border-0 shadow-sm mt-3">
+                    <div className="card-header bg-light">
+                        <h5 className="mb-0 text-muted">
+                            <i className="bi bi-bug me-2"></i>Profili Test
+                        </h5>
+                    </div>
+                    <div className="card-body">
+                        <div className="d-flex flex-wrap gap-2 justify-content-center">
+                            <button
+                                type="button"
+                                className="btn btn-outline-success btn-sm d-flex align-items-center gap-1"
+                                onClick={handleLoadFullTestProfile}
+                                title="Carica profilo completo con dati mock per testing"
+                            >
+                                <i className="bi bi-person-check"></i> Carica profilo test completo
+                            </button>
+                            <button
+                                type="button"
+                                className="btn btn-outline-danger btn-sm d-flex align-items-center gap-1"
+                                onClick={handleClearTestProfile}
+                                title="Svuota tutti i dati per test senza dati"
+                            >
+                                <i className="bi bi-trash"></i> Svuota profilo test
+                            </button>
+                        </div>
                     </div>
                 </div>
             </form>

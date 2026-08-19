@@ -18,6 +18,7 @@ export default function Login() {
         annoNascita: '',
         altezza: '',
         peso: '',
+        sesso: '',
         password: '',
         confermaPassword: ''
     })
@@ -66,6 +67,7 @@ export default function Login() {
         } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerData.email)) {
             errors.push('Inserisci un indirizzo email valido')
         }
+        if (!registerData.sesso) errors.push('Il sesso è obbligatorio')
         if (!registerData.annoNascita) errors.push('L\'anno di nascita è obbligatorio')
         else if (registerData.annoNascita < 1900 || registerData.annoNascita > new Date().getFullYear()) {
             errors.push('Inserisci un anno di nascita valido')
@@ -127,6 +129,7 @@ export default function Login() {
             nome: registerData.nome.trim(),
             cognome: registerData.cognome.trim(),
             email: registerData.email.trim().toLowerCase(),
+            sesso: registerData.sesso,
             annoNascita: registerData.annoNascita,
             eta: new Date().getFullYear() - registerData.annoNascita,
             altezza: registerData.altezza,
@@ -312,7 +315,24 @@ export default function Login() {
                                                     Questi dati saranno usati dall'IA per fornirti suggerimenti personalizzati
                                                 </p>
                                                 <div className="row g-3">
-                                                    <div className="col-md-4">
+                                                    <div className="col-md-3">
+                                                        <label htmlFor="sesso" className="form-label">
+                                                            <i className="bi bi-gender-ambiguous me-1 text-success"></i> Sesso *
+                                                        </label>
+                                                        <select
+                                                            className="form-select"
+                                                            id="sesso"
+                                                            name="sesso"
+                                                            value={registerData.sesso}
+                                                            onChange={handleRegisterChange}
+                                                            required
+                                                        >
+                                                            <option value="">Seleziona...</option>
+                                                            <option value="Uomo">Uomo</option>
+                                                            <option value="Donna">Donna</option>
+                                                        </select>
+                                                    </div>
+                                                    <div className="col-md-3">
                                                         <label htmlFor="annoNascita" className="form-label">
                                                             <i className="bi bi-calendar me-1 text-success"></i> Anno di Nascita *
                                                         </label>
@@ -329,7 +349,7 @@ export default function Login() {
                                                             required
                                                         />
                                                     </div>
-                                                    <div className="col-md-4">
+                                                    <div className="col-md-3">
                                                         <label htmlFor="altezza" className="form-label">
                                                             <i className="bi bi-rulers me-1 text-success"></i> Altezza (cm) *
                                                         </label>
@@ -346,7 +366,7 @@ export default function Login() {
                                                             required
                                                         />
                                                     </div>
-                                                    <div className="col-md-4">
+                                                    <div className="col-md-3">
                                                         <label htmlFor="peso" className="form-label">
                                                             <i className="bi bi-weight me-1 text-success"></i> Peso (kg) *
                                                         </label>

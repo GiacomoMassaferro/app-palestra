@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { chatWithMistral } from '../services/mistral'
-import { eseguiComandi, applicaModifiche as applicaModificheDaComandi } from '../services/comandi'
+import { eseguiComandi, applicaModifiche as applicaModificheDaComandi, eseguiComando } from '../services/comandi'
 
 export default function ChatPopup() {
     const [isOpen, setIsOpen] = useState(false)
@@ -33,8 +33,9 @@ export default function ChatPopup() {
             data: safeParse(savedData),
             suggestions: safeParse(savedSuggestions),
             user: safeParse(savedUser),
-            dietaFile: safeParse(savedDietaFile),
-            schedaFile: safeParse(savedSchedaFile)
+            // Per dietaFile e schedaFile, NON usare safeParse per mantenere anche i file binari
+            dietaFile: savedDietaFile || null,
+            schedaFile: savedSchedaFile || null
         }
         setContext(currentContext)
     }, [])
@@ -63,6 +64,39 @@ export default function ChatPopup() {
         try {
             console.log(`[ChatPopup] Invio messaggio:`, userMessage)
             
+            // Controlla se il messaggio e' un comando diretto (inizia con /)
+            // In questo caso, non chiamare l'API ma prepara la risposta con i comandi da confermare
+            if (userMessage.startsWith('/')) {
+                console.log(`[ChatPopup] Comando diretto rilevato: ${userMessage}`)
+                
+                // Esegue il comando solo per parsare e ottenere la struttura, NON per eseguirlo
+                const comandoTestuale = userMessage
+                const risultatoParsing = eseguiComando(comandoTestuale, {})
+                
+                console.log(`[ChatPopup] Risultato parsing comando:`, risultatoParsing)
+                
+                // Prepara la risposta del bot con il comando da confermare
+                // Non eseguiamo ancora il comando, l'utente deve confermare
+                const comandoDaConfermare = {
+                    tipo: comandoTestuale,
+                    parametri: {}
+                }
+                
+                const botMessage = {
+                    text: `Ho comprese la tua richiesta: ${comandoTestuale}. Vuoi che la esegua?`,
+                    sender: 'bot',
+                    timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
+                    modifiche: {},
+                    consigli: [],
+                    comandi: [comandoDaConfermare],
+                    refreshPage: false
+                }
+                
+                setMessages(prev => [...prev, botMessage])
+                setLoading(false)
+                return
+            }
+            
             // Chiama l'API Mistral con il messaggio e il contesto
             const response = await chatWithMistral(userMessage, context)
             
@@ -77,19 +111,12 @@ export default function ChatPopup() {
                 consigli: response.consigli || [],
                 comandi: response.comandi || [],
                 vacationData: response.vacationData,
-                refreshPage: response.refreshPage || response.refresh || false
+                refreshPage: false // SEMPRE false - il refresh avviene SOLO dopo conferma utente
             }
             
             console.log(`[ChatPopup] Messaggio bot formattato:`, botMessage)
             
             setMessages(prev => [...prev, botMessage])
-            
-            // Se c'è la richiesta di refresh, ricarica la pagina dopo un breve delay
-            if (response.refreshPage || response.refresh) {
-                setTimeout(() => {
-                    window.location.reload()
-                }, 1500)
-            }
             
         } catch (err) {
             console.error('Errore nell invio del messaggio:', err)
@@ -134,7 +161,7 @@ export default function ChatPopup() {
         console.log(`[applyModifiche] Chiamato con:`, { modifiche, comandi })
         
         // Assicurati che comandi sia un array
-        const comandiArray = Array.isArray(comandi) ? comandi : []
+        const comandiArray = Array.isArray(comandi) ? comandi : (comandi ? [comandi] : [])
         
         // Se non ci sono modifiche ne' comandi
         if (!modifiche && comandiArray.length === 0) {
@@ -420,7 +447,7 @@ export default function ChatPopup() {
                                                                         return <li key={idx} className="small m-0 p-0">{consiglio}</li>
                                                                     }
                                                                     if (consiglio && typeof consiglio === 'object') {
-                                                                        const text = consiglio.consiglio || consiglio.text || consiglio.risposta || (Object.values(consiglio) || []).join(' ')
+                                                                        const text = consiglio.consiglio || consiglio.text || consiglio.risposta || consiglio.messaggio || (Object.values(consiglio) || []).join(' ')
                                                                         return <li key={idx} className="small m-0 p-0">{typeof text === 'string' ? text : JSON.stringify(consiglio)}</li>
                                                                     }
                                                                     return <li key={idx} className="small m-0 p-0">{String(consiglio)}</li>
@@ -430,7 +457,7 @@ export default function ChatPopup() {
                                                     )}
                                                     
                                                     {/* Pulsante Conferma - solo se ci sono modifiche o comandi */}
-                                                    {(msg.modifiche && Object.keys(msg.modifiche || {}).length > 0) || (msg.comandi && msg.comandi.length > 0) ? (
+                                                    {(msg.modifiche && Object.keys(msg.modifiche || {}).length > 0) || (msg.comandi && Array.isArray(msg.comandi) && msg.comandi.length > 0) ? (
                                                         <div className="mt-2 text-end">
                                                             <button
                                                                 className="btn btn-sm btn-success"
@@ -455,11 +482,6 @@ export default function ChatPopup() {
                                             {msg.isSuccess && (
                                                 <div className="text-success small mt-1">
                                                     ✅ {msg.text}
-                                                </div>
-                                            )}
-                                            {msg.refreshPage && (
-                                                <div className="text-info small mt-1">
-                                                    <i className="bi bi-arrow-clockwise me-1"></i> La pagina verrà ricaricata...
                                                 </div>
                                             )}
                                             {msg.vacationData && (

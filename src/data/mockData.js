@@ -17,7 +17,7 @@ export const mockUser = {
     eta: 34,
     altezza: 175,
     peso: 70,
-    sesso: 'Maschio',
+    sesso: 'Uomo',
     createdAt: new Date().toISOString(),
     lastLogin: new Date().toISOString()
 };
@@ -34,7 +34,7 @@ export const mockUsers = [
         eta: new Date().getFullYear() - 1990,
         altezza: 175,
         peso: 70,
-        sesso: 'Maschio'
+        sesso: 'Uomo'
     },
     {
         email: 'laura.bianchi@example.com',
@@ -45,7 +45,7 @@ export const mockUsers = [
         eta: new Date().getFullYear() - 1985,
         altezza: 165,
         peso: 58,
-        sesso: 'Femmina'
+        sesso: 'Donna'
     },
     {
         email: 'luca.verdi@example.com',
@@ -56,7 +56,7 @@ export const mockUsers = [
         eta: new Date().getFullYear() - 1995,
         altezza: 180,
         peso: 80,
-        sesso: 'Maschio'
+        sesso: 'Uomo'
     }
 ];
 
@@ -415,18 +415,20 @@ export const mockFullData = {
 };
 
 /**
- * Funzione per caricare i dati mock in localStorage
- * Usa questa funzione per testare l'app senza dover compilare il form
- * NOTA: Non carica dati ferie mock - l'utente deve inserirli manualmente
+ * Funzione per caricare tutti i dati mock in localStorage per testing
+ * Carica: utente, configurazione e suggerimenti completi
+ * NOTA: Non carica dati ferie - l'utente deve inserirli manualmente
  */
-export function loadMockData() {
+export function loadFullTestProfile() {
     localStorage.setItem('palestra_user', JSON.stringify(mockUser))
     localStorage.setItem('palestra_data', JSON.stringify(mockFullData))
     localStorage.setItem('palestra_suggestions', JSON.stringify(mockSuggestions))
-    // Rimuovi eventuali dati ferie mock se presenti
+    // Rimuovi eventuali dati ferie e activities per avere un profilo pulito
     localStorage.removeItem('palestra_vacation')
     localStorage.removeItem('palestra_vacation_activities')
-    console.log('Dati mock caricati in localStorage!')
+    localStorage.removeItem('palestra_dieta_file')
+    localStorage.removeItem('palestra_scheda_file')
+    console.log('[TEST] Profilo test completo caricato in localStorage!')
     return {
         palestra_user: mockUser,
         palestra_data: mockFullData,
@@ -435,9 +437,10 @@ export function loadMockData() {
 }
 
 /**
- * Funzione per svuotare i dati mock da localStorage
+ * Funzione per svuotare tutti i dati per testing senza dati
+ * Crea un profilo vuoto per testare senza dati preesistenti
  */
-export function clearMockData() {
+export function clearTestProfile() {
     localStorage.removeItem('palestra_user')
     localStorage.removeItem('palestra_data')
     localStorage.removeItem('palestra_suggestions')
@@ -445,5 +448,6 @@ export function clearMockData() {
     localStorage.removeItem('palestra_vacation_activities')
     localStorage.removeItem('palestra_dieta_file')
     localStorage.removeItem('palestra_scheda_file')
-    console.log('Dati mock rimossi da localStorage!')
+    localStorage.removeItem('palestra_return_plan')
+    console.log('[TEST] Dati svuotati - profilo test vuoto creato!')
 }

@@ -745,9 +745,9 @@ export function eseguiComando(tipo, parametri = {}) {
         // Se tipo e' un comando testuale completo (es: "/ferie 15-01 20-01")
         if (typeof tipo === 'string' && tipo.startsWith('/')) {
             // Prova a parsare il comando testuale
-            const commandMatch = tipo.match(/^\/(ferie|pasto|mangiato|attivita|fatto|rientro|dieta|routine|modifiche|aggiungi[-_]?ferie|aggiorna[-_]?piano)\s*(.*)?$/i)
+            const commandMatch = tipo.match(/^\/(ferie|pasto|mangiato|ho\s*mangiato|attivita|fatto|ho\s*fatto|rientro|dieta|routine|modifiche|piano[-_]rientro|aggiorna[-_]piano)\s*(.*)?$/i)
             if (commandMatch) {
-                const cmdType = commandMatch[1].toLowerCase().replace(/[_-]/g, '')
+                const cmdType = commandMatch[1].toLowerCase().replace(/[\s_-]/g, '').replace(/\//g, '')
                 const cmdArgs = commandMatch[2] ? commandMatch[2].trim() : ''
 
                 console.log(`[COMANDO] Parsing testuale: cmdType="${cmdType}", cmdArgs="${cmdArgs}"`)
@@ -777,18 +777,21 @@ export function eseguiComando(tipo, parametri = {}) {
 
                     case 'pasto':
                     case 'mangiato':
+                    case 'homangiato':
                         parsedParametri = { description: cmdArgs || tipo }
                         console.log(`[COMANDO] Pasto: description="${parsedParametri.description}"`)
                         return registraPasto(parsedParametri.description)
 
                     case 'attivita':
                     case 'fatto':
+                    case 'hofatto':
                         parsedParametri = { description: cmdArgs || tipo }
                         console.log(`[COMANDO] Attivita: description="${parsedParametri.description}"`)
                         return registraAttivita(parsedParametri.description)
 
                     case 'rientro':
                     case 'aggiornapiano':
+                    case 'pianorientro':
                         console.log(`[COMANDO] Rientro: generando piano di rientro`)
                         return generaPianoRientro(null)
 
@@ -807,8 +810,8 @@ export function eseguiComando(tipo, parametri = {}) {
         // Comando come oggetto (tipo + parametri separati)
         console.log(`[COMANDO] Switch: tipo="${tipo.toLowerCase()}"`)
         
-        // Normalizza il tipo di comando: rimuovi underscore, trattini e converti in minuscolo
-        const tipoNormalizzato = tipo.toLowerCase().replace(/[_-]/g, '')
+        // Normalizza il tipo di comando: rimuovi underscore, trattini, slash e converti in minuscolo
+        const tipoNormalizzato = tipo.toLowerCase().replace(/[_-]/g, '').replace(/\//g, '')
         console.log(`[COMANDO] Normalizzato: tipoNormalizzato="${tipoNormalizzato}"`)
         
         switch (tipoNormalizzato) {
@@ -819,31 +822,33 @@ export function eseguiComando(tipo, parametri = {}) {
                 return aggiungiFerie(parametri.startDate, parametri.endDate)
             case 'pasto':
             case 'mangiato':
+            case 'homangiato':
                 console.log(`[COMANDO] Pasto: description="${parametri.description}", date="${parametri.date}", calories="${parametri.calories}"`)
                 return registraPasto(parametri.description, parametri.date, parametri.calories)
             case 'attivita':
             case 'fatto':
+            case 'hofatto':
                 console.log(`[COMANDO] Attivita: description="${parametri.description}", type="${parametri.type}"`)
                 return registraAttivita(parametri.description, parametri.date, parametri.type)
             case 'rientro':
-            case 'piano rientro':
+            case 'pianorientro':
             case 'aggiornapiano':
                 console.log(`[COMANDO] Rientro: context=`, parametri?.context)
                 return generaPianoRientro(parametri?.context || null)
             case 'dieta':
                 console.log(`[COMANDO] Dieta: giorno="${parametri.giorno}", pasti=`, parametri.pasti)
-                return modificaDieta(parametri.giorno, parametri.pasti)
+                return modificaDieta(parametri.giorno, parametri.pasti || {})
             case 'routine':
                 console.log(`[COMANDO] Routine: giorno="${parametri.giorno}", dati=`, parametri.dati)
-                return modificaRoutine(parametri.giorno, parametri.dati)
+                return modificaRoutine(parametri.giorno, parametri.dati || {})
             case 'modifiche':
                 console.log(`[COMANDO] Modifiche: modifiche=`, parametri.modifiche)
-                return applicaModifiche(parametri.modifiche)
+                return applicaModifiche(parametri.modifiche || {})
             default:
                 console.warn(`[COMANDO] Comando sconosciuto: ${tipo} (normalizzato: ${tipoNormalizzato})`)
                 return {
                     successo: false,
-                    messaggio: `Comando sconosciuto: ${tipo}. Comandi validi: ferie, pasto, attivita, rientro, dieta, routine, modifiche`,
+                    messaggio: `Comando sconosciuto: ${tipo}. Comandi validi: ferie, pasto/mangiato, attivita/fatto, rientro/aggiorna_piano, dieta, routine, modifiche`,
                     dati: null,
                     refresh: false
                 }

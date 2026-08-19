@@ -148,6 +148,83 @@ src/
 - [x] Verificato OXLint: 0 warnings, 0 errors
 - [x] Verificato build: success
 
+## 2025-10-28
+- [x] **Aggiunta distinzione sesso all'iscrizione**: campo sesso (Uomo/Donna) nel form di registrazione in Login.jsx
+- [x] Aggiunto campo `sesso` in `registerData` e validazione obbligatoria
+- [x] Inclusi dati sesso in `userData` salvati in localStorage
+- [x] Aggiornato `getUserInfoString()` in mistral.js per includere sesso nei dati passati all'AI
+- [x] Allineati dati mock in mockData.js (Uomo/Donna invece di Maschio/Femmina)
+- [x] **Fixati i comandi**: rimossi riferimenti a ISTRUZIONI.md dai prompt in mistral.js
+- [x] Integrati elenchi comandi direttamente nei template PROMPT_TEMPLATE e CHAT_PROMPT_TEMPLATE
+- [x] Assicurata coerenza tra comandi.js, ISTRUZIONI.md e i prompt
+- [x] Aggiornato PLAN.md
+- [x] Verifica OXLint e build
+
+## 2025-01-19
+- [x] **Test e miglioramenti comandi AI**:
+  - Migliorato regex in `eseguiComando` per catturare comandi testuali come `/ho mangiato pizza` e `/ho fatto yoga`
+  - Aggiunti casi normalizzati: `homangiato`, `hofatto`, `pianorientro`
+  - Aggiunta protezione per `msg.comandi` in ChatPopup.jsx per assicurare sia sempre un array
+  - Aggiunta proprietà `messaggio` all'estrazione testo dai consigli
+  - Corretto duplicato caso `pianorientro` in switch statement
+  - Aggiunte validazioni `|| {}` per parametri opzionali in `modificaDieta` e `modificaRoutine`
+- [x] Verifica OXLint e build
+- [x] **Rimossi file di test**: cancellati `test_comandi.js` e `test_comandi_ai.cjs` (non più necessari)
+- [x] Verifica finale OXLint: 0 warnings, 0 errors
+
+## 2025-01-20
+- [x] **File dieta e scheda utili per la routine**:
+  - Modificato `CHAT_PROMPT_TEMPLATE` in `mistral.js` per includere dietaFile e schedaFile
+  - Modificato `chatWithMistral()` in `mistral.js` per estrarre e passare dietaFile e schedaFile al template
+  - Aggiunte istruzioni esplicite all'AI per usare i dati dai file caricati
+- [x] Verifica OXLint e build
+
+## 2025-01-21
+- [x] **Rimossi dati demo generali e creati profili test**:
+  - Rimosso bottone "Dati demo" da Home.jsx
+  - Rimosso import e funzione handleLoadMockData da Home.jsx
+  - Aggiunti in Settings.jsx due bottoni: "Carica profilo test completo" e "Svuota profilo test"
+  - Rinominata `loadMockData` in `loadFullTestProfile` in mockData.js
+  - Rinominata `clearMockData` in `clearTestProfile` in mockData.js
+  - Aggiunte funzioni handleLoadFullTestProfile e handleClearTestProfile in Settings.jsx
+- [x] Verifica OXLint e build
+
+## 2025-01-22
+- [x] **Fix comando attivita/fatto**:
+  - Corretto template in mistral.js: `attivita/fatto` → `attivita` e `fatto` separati
+  - Aggiunto supporto per `rientro/aggiorna_piano` nei template
+  - Aggiunta normalizzazione dello `/` in `eseguiComando` per gestire comandi come `attivita/fatto`
+  - Aggiornato messaggio di errore con comandi validi aggiornati
+- [x] Verifica OXLint e build
+
+## 2025-01-23
+- [x] **Fix: IA NON aggiorna mai senza conferma**:
+  - Rimossa gestione diretta dei comandi in `chatWithMistral()` (ferie, pasti, attivita, rientro)
+  - Modificato `chatWithMistral()` per restituire solo struttura con comandi da confermare, mai eseguire direttamente
+  - Forzato `refreshPage: false` in tutti i messaggi del bot in `ChatPopup.jsx`
+  - Rimosso codice di reload automatico da `handleSendMessage`
+  - Rimosse funzioni non usate `generateLocalSuggestions` e `generateReturnSchedule`
+  - Aggiunto gestione comandi testuali in `handleSendMessage` per mostrare sempre conferma
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success
+
+## 2025-01-24
+- [x] **Fix errore parsing file binari in Settings.jsx**:
+  - Aggiunto controllo per file binari (prefisso `[FILE:`) nel caricamento da localStorage
+  - File binari vengono mantenuti come stringa, non parsati come JSON
+  - Corretto sia per dietaFile che schedaFile
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success
+
+## 2025-01-25
+- [x] **Fix: IA riceve i file caricati per creare il piano**:
+  - In ChatPopup.jsx: modificato caricamento dietaFile e schedaFile per NON usare safeParse, mantenendo i file binari
+  - In mistral.js: migliorata gestione file binari nel prompt con estrazione tipo e nome
+  - Aggiunto istuzioni nel CHAT_PROMPT_TEMPLATE per gestire file JSON e binari
+  - L'AI ora riceve sempre i file caricati (JSON o binari) nel prompt
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success
+
 ## 2025-08-13
 - [x] Creazione dati mock in `src/data/mockData.js`
 - [x] Aggiornamento `DayDetails.jsx` per usare suggerimenti da localStorage

@@ -1,6 +1,5 @@
 import { useNavigate } from 'react-router-dom'
 import { useState, useEffect } from 'react'
-import { loadMockData } from '../data/mockData'
 import VacationTracker from '../components/VacationTracker'
 
 export default function Home() {
@@ -12,11 +11,6 @@ export default function Home() {
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
     const [vacationData, setVacationData] = useState(null)
     const [vacationActivities, setVacationActivities] = useState([])
-
-    const handleLoadMockData = () => {
-        loadMockData()
-        window.location.reload()
-    }
 
     // Ottieni il nome del giorno corrente in italiano
     const getCurrentDayName = () => {
@@ -447,13 +441,6 @@ export default function Home() {
                     <p className="text-muted mb-0">Gestione allenamenti e dieta personalizzata</p>
                 </div>
                 <div className="d-flex gap-2">
-                    <button 
-                        className="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1"
-                        onClick={handleLoadMockData}
-                        title="Carica dati di esempio"
-                    >
-                        <i className="bi bi-magic"></i> Dati demo
-                    </button>
                     <button 
                         className="btn btn-primary btn-sm d-flex align-items-center gap-1"
                         onClick={() => navigate('/settings')}

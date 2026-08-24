@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { chatWithMistral } from '../services/mistral'
-import { eseguiComandi, applicaModifiche as applicaModificheDaComandi, eseguiComando } from '../services/comandi'
+import { eseguiComando } from '../services/comandi'
+import { routeResponse } from '../services/comandiRouter'
 
 export default function ChatPopup() {
     const [isOpen, setIsOpen] = useState(false)
@@ -155,7 +156,8 @@ export default function ChatPopup() {
     }
 
     /**
-     * Esegue i comandi e applica le modifiche suggerite dal bot
+     * Esegue il routing e l'esecuzione automatica delle risposte del bot
+     * Utilizza il router centralizzato per instradare comandi e modifiche
      */
     const applyModifiche = (modifiche, messageIndex, comandi = []) => {
         console.log(`[applyModifiche] Chiamato con:`, { modifiche, comandi })
@@ -176,112 +178,66 @@ export default function ChatPopup() {
         }
         
         try {
-            let needsRefresh = false
-            
-            // Se ci sono comandi da eseguire
-            if (comandiArray.length > 0) {
-                try {
-                    const risultatoComandi = eseguiComandi(comandiArray)
-                    
-                    if (!risultatoComandi || typeof risultatoComandi !== 'object') {
-                        setMessages(prev => [...prev, {
-                            text: '❌ Risposta non valida dall esecuzione dei comandi',
-                            sender: 'system',
-                            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                            isError: true
-                        }])
-                        return
-                    }
-                    
-                    if (!risultatoComandi.successo) {
-                        setMessages(prev => [...prev, {
-                            text: `❌ Errore nell'esecuzione dei comandi: ${risultatoComandi.messaggio || 'Errore sconosciuto'}`,
-                            sender: 'system',
-                            timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                            isError: true
-                        }])
-                        return
-                    }
-                    
-                    // Mostra notifica per comandi eseguiti
-                    setMessages(prev => [...prev, {
-                        text: `✅ ${risultatoComandi.messaggio || 'Comandi eseguiti'}`,
-                        sender: 'system',
-                        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                        isSuccess: true
-                    }])
-                    
-                    if (risultatoComandi.refresh) {
-                        needsRefresh = true
-                    }
-                } catch (comandiError) {
-                    console.error('[ChatPopup] Errore in eseguiComandi:', comandiError)
-                    setMessages(prev => [...prev, {
-                        text: `❌ Errore critico: ${comandiError.message || String(comandiError)}`,
-                        sender: 'system',
-                        timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                        isError: true
-                    }])
-                    return
-                }
+            // Costruisci l'oggetto risposta nel formato atteso dal router
+            const aiResponse = {
+                risposta: 'Modifiche in corso...',
+                modifiche: modifiche || {},
+                consigli: [],
+                comandi: comandiArray,
+                refresh: false
             }
             
-            // Se ci sono modifiche alla dieta/routine da applicare
-            if (modifiche && Object.keys(modifiche).length > 0) {
-                // Usa la funzione da comandi.js per applicare le modifiche
-                const risultato = applicaModificheDaComandi(modifiche)
-                
-                if (!risultato.successo) {
+            console.log(`[applyModifiche] Eseguo routing con:`, aiResponse)
+            
+            // Usa il router centralizzato per instradare la risposta
+            const risultato = routeResponse(aiResponse)
+            
+            console.log(`[applyModifiche] Risultato routing:`, risultato)
+            
+            // Mostra i messaggi di risultato
+            if (risultato.messaggi && Array.isArray(risultato.messaggi)) {
+                risultato.messaggi.forEach(msg => {
+                    const isSuccess = risultato.successo
                     setMessages(prev => [...prev, {
-                        text: `❌ Errore nell'applicazione delle modifiche: ${risultato.messaggio}`,
+                        text: msg,
                         sender: 'system',
                         timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                        isError: true
+                        isSuccess: isSuccess,
+                        isError: !isSuccess
                     }])
-                    return
-                }
-
-                // Aggiorna il contesto locale
+                })
+            }
+            
+            // Aggiorna il contesto locale se ci sono dati
+            if (risultato.dati && risultato.dati.modifiche) {
                 setContext(prev => ({
                     ...prev,
-                    suggestions: risultato.dati
+                    suggestions: risultato.dati.modifiche
                 }))
-
-                // Aggiorna i messaggi per mostrare che le modifiche sono state applicate
-                setMessages(prev => prev.map((msg, idx) => {
-                    if (idx === messageIndex && msg.sender === 'bot') {
-                        return {
-                            ...msg,
-                            applied: true
-                        }
-                    }
-                    return msg
-                }))
-
-                // Mostra notifica
-                setMessages(prev => [...prev, {
-                    text: '✅ Modifiche applicate con successo!',
-                    sender: 'system',
-                    timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
-                    isSuccess: true
-                }])
-                
-                if (risultato.refresh) {
-                    needsRefresh = true
-                }
             }
             
-            // Ricarica la pagina SE e SOLO SE e' necessario
-            if (needsRefresh) {
+            // Marka il messaggio come applicato
+            setMessages(prev => prev.map((msg, idx) => {
+                if (idx === messageIndex && msg.sender === 'bot') {
+                    return {
+                        ...msg,
+                        applied: true
+                    }
+                }
+                return msg
+            }))
+            
+            // Ricarica la pagina se necessario
+            if (risultato.necessitaRefresh) {
                 setTimeout(() => {
                     window.location.reload()
                 }, 1000)
             }
-
+            
         } catch (err) {
-            console.error('Errore nell applicazione delle modifiche:', err)
+            console.error('[applyModifiche] Errore critico:', err)
             setMessages(prev => [...prev, {
-                text: '❌ Errore nell applicazione delle modifiche. Riprova.',
+                text: `❌ Errore critico: ${err.message || String(err)}`,
                 sender: 'system',
                 timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                 isError: true

@@ -288,6 +288,18 @@ src/
 ## 2025-06-24
 - [x] Scaffolding e configurazione iniziale
 
+## 2025-01-25
+- [x] **Implementazione routing risposte del bot AI**:
+  - Creato nuovo file `src/services/comandiRouter.js` con funzione `routeResponse` per instradare automaticamente le risposte dell'AI
+  - Funzione `routeResponse` gestisce automaticamente: comandi (eseguiti tramite `eseguiComandi`) e modifiche (applicate tramite `applicaModifiche`)
+  - Aggiunte funzioni ausiliarie `eseguiRisposta` (wrapper con error handling) e `validaFormatoRisposta` (validazione formato)
+  - Aggiornato `ChatPopup.jsx` per usare `routeResponse` nella funzione `applyModifiche`
+  - Semplificata logica di esecuzione: ora il routing e' centralizzato e non duplicato
+  - Rimossi import inutilizzati (`eseguiComandi`, `applicaModificheDaComandi`) da ChatPopup.jsx
+  - Gestione standardizzata dei risultati con messaggi di sistema uniformi
+  - Verifica OXLint: 0 warnings, 0 errors
+  - Verifica build: success
+
 ## 2025-10-28
 - [x] Aggiunta sezione "Oggi è [Giorno, data completa]" in cima alla pagina Home
 - [x] Implementate funzioni per generare suggerimenti di ricetta in base al tipo di pasto

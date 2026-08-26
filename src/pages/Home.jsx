@@ -1,12 +1,13 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useContext } from 'react'
+import { SettingsContext } from '../contexts/SettingsContext'
 import { mockPalestraData } from '../data/mockData'
 
 export default function Home() {
+  const { settings } = useContext(SettingsContext)
   const [meseCorrente, setMeseCorrente] = useState(new Date())
 
   const calendario = useMemo(() => {
-    const data = localStorage.getItem('palestra_data')
-    const config = data ? JSON.parse(data) : mockPalestraData
+    const config = settings || mockPalestraData
     const giorniAllenamento = config.giorniAllenamento || []
     
     const anno = meseCorrente.getFullYear()
@@ -31,7 +32,7 @@ export default function Home() {
       })
     }
     return giorniMese
-  }, [meseCorrente])
+  }, [meseCorrente, settings])
 
   const goNextMonth = () => {
     setMeseCorrente(new Date(meseCorrente.getFullYear(), meseCorrente.getMonth() + 1, 1))

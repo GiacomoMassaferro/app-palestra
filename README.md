@@ -8,7 +8,11 @@ Un'applicazione web embrionale per gestire dieta e routine di palestra. Versione
 - **Navigazione tra mesi**: Freccie per passare al mese precedente/successivo
 - **Evidenziazione giorno corrente**: sfondo blu per il giorno odierno
 - **Indicatori visivi**: 🏋️ per giorni di allenamento, 🍽️ per giorni con pasti
-- **Dati mock**: caricamento automatico dati di esempio al primo avvio
+- **Impostazioni**: Gestione obiettivo, livello, preferenze alimentari, giorni allenamento, durata, orari pasti
+- **Scheda Allenamento**: Aggiunta, modifica, eliminazione esercizi con serie, ripetizioni, riposo e note
+- **Scheda Nutrizionale**: Aggiunta, modifica, eliminazione pasti con calorie, macro, orario e note
+- **Totali nutrizionali**: Calcolo automatico calorie, proteine, carboidrati, grassi giornalieri
+- **Persistenza dati**: Salvataggio automatico in localStorage
 
 ## Stack Tecnologico
 
@@ -31,9 +35,13 @@ src/
     services/        # Funzioni per API Mistral (struttura base)
         mistral.js   # Servizio per integrazione Mistral
     contexts/        # Context React
-        AuthContext.jsx # Contesto autenticazione (struttura base)
+        AuthContext.jsx    # Contesto autenticazione (struttura base)
+        SettingsContext.jsx # Contesto per impostazioni, scheda allenamento e nutrizionale
     pages/           # Pagine principali
-        Home.jsx     # Calendario con design moderno
+        Home.jsx         # Calendario con design moderno
+        Settings.jsx     # Impostazioni base
+        WorkoutPlan.jsx  # Scheda allenamento
+        NutritionPlan.jsx # Scheda nutrizionale
     assets/          # Risorse statiche
         styles/     # Stili personalizzati (vuoto)
 ```
@@ -80,9 +88,14 @@ L'app sara disponibile all'indirizzo: [http://localhost:5173](http://localhost:5
 | `pnpm preview` | Anteprima della build |
 | `pnpm lint` | Esegue il linting con OXLint |
 
-## Dati Mock
+## Dati e Persistenza
 
-L'app carica automaticamente dati di esempio al primo avvio. I dati includono:
+L'app salva automaticamente i dati in localStorage:
+- `palestra_settings`: Impostazioni base (obiettivo, livello, preferenze, giorni allenamento, durata, orari pasti)
+- `palestra_workout_plan`: Scheda allenamento con esercizi
+- `palestra_nutrition_plan`: Scheda nutrizionale con pasti e valori nutrizionali
+
+I dati vengono caricati automaticamente al primo avvio con valori di esempio:
 - Obiettivo: Massa Muscolare
 - Livello: Intermedio
 - Giorni di allenamento: Lunedì, Martedì, Giovedì, Venerdì
@@ -90,11 +103,11 @@ L'app carica automaticamente dati di esempio al primo avvio. I dati includono:
 
 ## Prossimi Passi
 
-1. Implementare form di configurazione in una pagina Settings
-2. Aggiungere pagina DayDetails per dettagli del giorno
-3. Implementare integrazione API Mistral per generazione suggerimenti
-4. Aggiungere chatbot per modifiche al piano
-5. Implementare gestione ferie e tracciamento attivita
+1. Aggiungere pagina DayDetails per dettagli del giorno
+2. Implementare integrazione API Mistral per generazione suggerimenti
+3. Aggiungere chatbot per modifiche al piano
+4. Implementare gestione ferie e tracciamento attivita
+5. Aggiungere grafici e statistiche
 
 ## Note
 

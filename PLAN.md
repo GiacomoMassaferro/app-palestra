@@ -117,6 +117,19 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - Comandi strutturati e facili da mantenere
 - Integrazione graduale con l'API Mistral
 
+## Milestone 4: Sezione Impostazioni e Schede
+- [x] Creare SettingsContext per gestire dati impostazioni e schede
+- [x] Aggiornare MainLayout con link a Settings, WorkoutPlan, NutritionPlan
+- [x] Creare pagina Settings con form per dati base
+- [x] Creare pagina WorkoutPlan con form per scheda allenamento
+- [x] Creare pagina NutritionPlan con form per scheda nutrizionale
+- [x] Aggiornare App.jsx con nuove route
+- [x] Aggiornare Home.jsx per usare SettingsContext
+- [x] Verificare salvataggio in localStorage
+- [x] Verificare OXLint e build
+
+---
+
 ## Changelog Giornaliero
 
 ### 2026-08-26
@@ -126,3 +139,11 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - [x] Aggiornati README.md e PLAN.md
 - [x] Verificato OXLint: 0 warnings, 0 errors
 - [x] Verificato build: success
+
+### 2025-10-28
+- [x] Creazione SettingsContext
+- [x] Aggiornamento MainLayout e App.jsx
+- [x] Creazione pagine Settings, WorkoutPlan, NutritionPlan
+- [x] Aggiornamento Home.jsx per usare SettingsContext
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success

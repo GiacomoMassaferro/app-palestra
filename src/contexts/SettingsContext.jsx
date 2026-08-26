@@ -37,17 +37,38 @@ const defaultNutritionPlan = {
 export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(() => {
     const saved = localStorage.getItem('palestra_settings')
-    return saved ? JSON.parse(saved) : defaultSettings
+    const parsed = saved ? JSON.parse(saved) : defaultSettings
+    // Assicurati che tutti i campi esistano per dati vecchi
+    return {
+      ...defaultSettings,
+      ...parsed,
+      giorniAllenamento: parsed.giorniAllenamento || defaultSettings.giorniAllenamento,
+      orariPasti: parsed.orariPasti || defaultSettings.orariPasti
+    }
   })
 
   const [workoutPlan, setWorkoutPlan] = useState(() => {
     const saved = localStorage.getItem('palestra_workout_plan')
-    return saved ? JSON.parse(saved) : defaultWorkoutPlan
+    const parsed = saved ? JSON.parse(saved) : defaultWorkoutPlan
+    // Assicurati che tutti i campi esistano per dati vecchi
+    return {
+      ...defaultWorkoutPlan,
+      ...parsed,
+      esercizi: parsed.esercizi || [],
+      files: parsed.files || []
+    }
   })
 
   const [nutritionPlan, setNutritionPlan] = useState(() => {
     const saved = localStorage.getItem('palestra_nutrition_plan')
-    return saved ? JSON.parse(saved) : defaultNutritionPlan
+    const parsed = saved ? JSON.parse(saved) : defaultNutritionPlan
+    // Assicurati che tutti i campi esistano per dati vecchi
+    return {
+      ...defaultNutritionPlan,
+      ...parsed,
+      pasti: parsed.pasti || [],
+      files: parsed.files || []
+    }
   })
 
   useEffect(() => {

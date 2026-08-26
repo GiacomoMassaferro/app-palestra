@@ -259,7 +259,7 @@ export default function WorkoutPlan() {
           </label>
         </div>
         <div className="card-body">
-          {workoutPlan.files.length === 0 ? (
+          {(workoutPlan.files?.length || 0) === 0 ? (
             <div className="alert alert-info mb-0">
               Nessun file allegato. Carica PDF, immagini o altri documenti.
             </div>
@@ -276,7 +276,7 @@ export default function WorkoutPlan() {
                   </tr>
                 </thead>
                 <tbody>
-                  {workoutPlan.files.map((file) => (
+                  {(workoutPlan.files || []).map((file) => (
                     <tr key={file.id}>
                       <td>
                         <div className="d-flex align-items-center">

@@ -46,6 +46,14 @@ export default function MainLayout() {
                             </li>
                             <li className="nav-item">
                                 <button 
+                                    className={`nav-link btn btn-link text-white text-decoration-none ${isActive('/vacations') ? 'fw-bold' : ''}`}
+                                    onClick={() => navigate('/vacations')}
+                                >
+                                    <i className="bi bi-airplane me-1"></i> Ferie
+                                </button>
+                            </li>
+                            <li className="nav-item">
+                                <button 
                                     className={`nav-link btn btn-link text-white text-decoration-none ${isActive('/settings') ? 'fw-bold' : ''}`}
                                     onClick={() => navigate('/settings')}
                                 >

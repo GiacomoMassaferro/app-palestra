@@ -4,6 +4,7 @@ import MainLayout from './layouts/MainLayout'
 import Home from './pages/Home'
 import DayDetails from './pages/DayDetails'
 import Settings from './pages/Settings'
+import Vacations from './pages/Vacations'
 import Profile from './pages/Profile'
 import Login from './pages/Login'
 
@@ -32,6 +33,7 @@ function App() {
           <Route index element={<Home />} />
           <Route path="day/:date" element={<DayDetails />} />
           <Route path="settings" element={<Settings />} />
+          <Route path="vacations" element={<Vacations />} />
           <Route path="profile" element={<Profile />} />
         </Route>
         <Route path="/chat" element={<Navigate to="/" replace />} />

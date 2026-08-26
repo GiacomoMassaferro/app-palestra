@@ -542,7 +542,7 @@ export default function NutritionPlan() {
                 </div>
               )}
             </div>
-            <div className="modal-footer">
+            <div className="modal-footer bg-light">
               <div className="d-flex justify-content-between align-items-center w-100">
                 <div>
                   <span className="text-muted me-3">
@@ -555,8 +555,8 @@ export default function NutritionPlan() {
                   </span>
                 </div>
                 <div>
-                  <button className="btn btn-outline-light me-2" onClick={closePreview}>
-                    Chiudi
+                  <button className="btn btn-secondary me-2" onClick={closePreview}>
+                    <i className="bi bi-x-circle me-1"></i>Chiudi
                   </button>
                   {previewFile && (
                     <button className="btn btn-primary" onClick={() => downloadFile(previewFile)}>

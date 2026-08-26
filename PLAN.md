@@ -128,6 +128,16 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - [x] Verificare salvataggio in localStorage
 - [x] Verificare OXLint e build
 
+## Milestone 5: Gestione File per Schede
+- [x] Aggiungere gestione file a SettingsContext (addWorkoutFile, removeWorkoutFile, addNutritionFile, removeNutritionFile)
+- [x] Aggiungere sezione file a WorkoutPlan con upload, download, eliminazione
+- [x] Aggiungere sezione file a NutritionPlan con upload, download, eliminazione
+- [x] Struttura dati AI-friendly con metadata per futuri bot AI
+- [x] Gestione Base64 per file fino a 4MB
+- [x] Icone specifiche per tipo di file (PDF, immagini, ecc.)
+- [x] Verificare OXLint: 0 warnings, 0 errors
+- [x] Verificare build: success
+
 ---
 
 ## Changelog Giornaliero
@@ -145,5 +155,8 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - [x] Aggiornamento MainLayout e App.jsx
 - [x] Creazione pagine Settings, WorkoutPlan, NutritionPlan
 - [x] Aggiornamento Home.jsx per usare SettingsContext
+- [x] Aggiunta gestione file con upload Base64
+- [x] Aggiunta sezione file a WorkoutPlan e NutritionPlan
+- [x] Struttura dati AI-friendly per futuri bot
 - [x] Verifica OXLint: 0 warnings, 0 errors
 - [x] Verifica build: success

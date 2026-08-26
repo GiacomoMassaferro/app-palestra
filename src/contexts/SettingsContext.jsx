@@ -2,6 +2,14 @@ import { createContext, useState, useEffect } from 'react'
 
 const SettingsContext = createContext(null)
 
+// Funzione per generare ID univoco
+const generateId = () => {
+  return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`
+}
+
+// Limite massimo per file in Base64 (circa 4MB)
+const MAX_FILE_SIZE = 4 * 1024 * 1024
+
 const defaultSettings = {
   obiettivo: 'Massa Muscolare',
   livello: 'Intermedio',
@@ -17,11 +25,13 @@ const defaultSettings = {
 }
 
 const defaultWorkoutPlan = {
-  esercizi: []
+  esercizi: [],
+  files: []
 }
 
 const defaultNutritionPlan = {
-  pasti: []
+  pasti: [],
+  files: []
 }
 
 export function SettingsProvider({ children }) {
@@ -94,6 +104,90 @@ export function SettingsProvider({ children }) {
     setNutritionPlan({ ...nutritionPlan, pasti: newPasti })
   }
 
+  // Funzioni per gestire file nella scheda allenamento
+  const addWorkoutFile = (file, description = '') => {
+    return new Promise((resolve, reject) => {
+      if (file.size > MAX_FILE_SIZE) {
+        reject(new Error(`File troppo grande. Limite massimo: ${MAX_FILE_SIZE / (1024 * 1024)}MB`))
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        const newFile = {
+          id: generateId(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: reader.result,
+          uploadedAt: new Date().toISOString(),
+          description: description,
+          ai_metadata: {
+            processable: true,
+            content_type: file.type,
+            category: 'workout'
+          }
+        }
+        setWorkoutPlan({
+          ...workoutPlan,
+          files: [...workoutPlan.files, newFile]
+        })
+        resolve(newFile)
+      }
+      reader.onerror = () => reject(new Error('Errore nella lettura del file'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeWorkoutFile = (fileId) => {
+    setWorkoutPlan({
+      ...workoutPlan,
+      files: workoutPlan.files.filter(f => f.id !== fileId)
+    })
+  }
+
+  // Funzioni per gestire file nella scheda nutrizionale
+  const addNutritionFile = (file, description = '') => {
+    return new Promise((resolve, reject) => {
+      if (file.size > MAX_FILE_SIZE) {
+        reject(new Error(`File troppo grande. Limite massimo: ${MAX_FILE_SIZE / (1024 * 1024)}MB`))
+        return
+      }
+
+      const reader = new FileReader()
+      reader.onload = () => {
+        const newFile = {
+          id: generateId(),
+          name: file.name,
+          type: file.type,
+          size: file.size,
+          data: reader.result,
+          uploadedAt: new Date().toISOString(),
+          description: description,
+          ai_metadata: {
+            processable: true,
+            content_type: file.type,
+            category: 'nutrition'
+          }
+        }
+        setNutritionPlan({
+          ...nutritionPlan,
+          files: [...nutritionPlan.files, newFile]
+        })
+        resolve(newFile)
+      }
+      reader.onerror = () => reject(new Error('Errore nella lettura del file'))
+      reader.readAsDataURL(file)
+    })
+  }
+
+  const removeNutritionFile = (fileId) => {
+    setNutritionPlan({
+      ...nutritionPlan,
+      files: nutritionPlan.files.filter(f => f.id !== fileId)
+    })
+  }
+
   const resetSettings = () => {
     setSettings(defaultSettings)
     setWorkoutPlan(defaultWorkoutPlan)
@@ -108,10 +202,14 @@ export function SettingsProvider({ children }) {
       addEsercizio,
       removeEsercizio,
       updateEsercizio,
+      addWorkoutFile,
+      removeWorkoutFile,
       nutritionPlan,
       addPasto,
       removePasto,
       updatePasto,
+      addNutritionFile,
+      removeNutritionFile,
       resetSettings
     }}>
       {children}

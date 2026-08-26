@@ -12,6 +12,11 @@ Un'applicazione web embrionale per gestire dieta e routine di palestra. Versione
 - **Scheda Allenamento**: Aggiunta, modifica, eliminazione esercizi con serie, ripetizioni, riposo e note
 - **Scheda Nutrizionale**: Aggiunta, modifica, eliminazione pasti con calorie, macro, orario e note
 - **Totali nutrizionali**: Calcolo automatico calorie, proteine, carboidrati, grassi giornalieri
+- **Gestione File**: 
+  - Upload di qualsiasi tipo di file (PDF, immagini, documenti, ecc.)
+  - Download e eliminazione file
+  - Salvataggio come Base64 (limite 4MB per file)
+  - Metadata AI-friendly per futuri bot AI
 - **Persistenza dati**: Salvataggio automatico in localStorage
 
 ## Stack Tecnologico
@@ -40,8 +45,8 @@ src/
     pages/           # Pagine principali
         Home.jsx         # Calendario con design moderno
         Settings.jsx     # Impostazioni base
-        WorkoutPlan.jsx  # Scheda allenamento
-        NutritionPlan.jsx # Scheda nutrizionale
+        WorkoutPlan.jsx  # Scheda allenamento con gestione file
+        NutritionPlan.jsx # Scheda nutrizionale con gestione file
     assets/          # Risorse statiche
         styles/     # Stili personalizzati (vuoto)
 ```
@@ -92,10 +97,16 @@ L'app sara disponibile all'indirizzo: [http://localhost:5173](http://localhost:5
 
 L'app salva automaticamente i dati in localStorage:
 - `palestra_settings`: Impostazioni base (obiettivo, livello, preferenze, giorni allenamento, durata, orari pasti)
-- `palestra_workout_plan`: Scheda allenamento con esercizi
-- `palestra_nutrition_plan`: Scheda nutrizionale con pasti e valori nutrizionali
+- `palestra_workout_plan`: Scheda allenamento con esercizi e file allegati
+- `palestra_nutrition_plan`: Scheda nutrizionale con pasti, valori nutrizionali e file allegati
 
 I dati vengono caricati automaticamente al primo avvio con valori di esempio:
+
+**Nota sui file:**
+- I file vengono salvati come Base64 in localStorage
+- Limite massimo per singolo file: **4MB**
+- Tipi supportati: **tutti** (PDF, immagini, documenti, ecc.)
+- I file hanno metadata AI-friendly per futuri bot AI
 - Obiettivo: Massa Muscolare
 - Livello: Intermedio
 - Giorni di allenamento: Lunedì, Martedì, Giovedì, Venerdì

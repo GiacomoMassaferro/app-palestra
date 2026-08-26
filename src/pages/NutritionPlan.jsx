@@ -22,6 +22,8 @@ export default function NutritionPlan() {
   })
 
   const [editingIndex, setEditingIndex] = useState(null)
+  const [previewFile, setPreviewFile] = useState(null)
+  const [showPreviewModal, setShowPreviewModal] = useState(false)
 
   // Funzioni ausiliarie per i file
   const formatFileSize = (bytes) => {
@@ -47,6 +49,92 @@ export default function NutritionPlan() {
     document.body.appendChild(link)
     link.click()
     document.body.removeChild(link)
+  }
+
+  // Funzione per aprire la modal di anteprima
+  const openPreview = (file) => {
+    setPreviewFile(file)
+    setShowPreviewModal(true)
+  }
+
+  // Funzione per chiudere la modal
+  const closePreview = () => {
+    setShowPreviewModal(false)
+    setPreviewFile(null)
+  }
+
+  // Funzione per rendere l'anteprima del file
+  const renderPreview = (file) => {
+    if (!file) return null
+
+    // Immagini
+    if (file.type.includes('image')) {
+      return (
+        <img 
+          src={file.data} 
+          alt={file.name} 
+          className="img-fluid rounded"
+          style={{ maxHeight: '70vh', maxWidth: '100%' }}
+        />
+      )
+    }
+
+    // PDF
+    if (file.type.includes('pdf')) {
+      return (
+        <div className="ratio ratio-16x9">
+          <iframe 
+            src={file.data} 
+            title={file.name}
+            className="w-100 h-100 border-0"
+          />
+        </div>
+      )
+    }
+
+    // Testo (TXT, CSV, JSON, ecc.)
+    if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+      return (
+        <div 
+          className="bg-light p-3 rounded" 
+          style={{ 
+            maxHeight: '70vh', 
+            overflow: 'auto',
+            whiteSpace: 'pre-wrap',
+            fontFamily: 'monospace',
+            fontSize: '0.8rem'
+          }}
+        >
+          <p className="text-muted small mb-2">
+            Anteprima testuale - Contenuto parziale per file di grandi dimensioni
+          </p>
+          <p>
+            Questo file ({file.type}) può essere visualizzato come testo. 
+            Per vedere il contenuto completo, scarica il file.
+          </p>
+        </div>
+      )
+    }
+
+    // Altri tipi
+    return (
+      <div className="text-center py-5">
+        <i className={`bi bi-file-earmark-${getFileIcon(file.type)} fs-1 text-primary mb-3`}></i>
+        <h5>{file.name}</h5>
+        <p className="text-muted">Anteprima non disponibile per questo tipo di file</p>
+        <button className="btn btn-primary" onClick={() => downloadFile(file)}>
+          <i className="bi bi-download me-2"></i>Scarica File
+        </button>
+      </div>
+    )
+  }
+
+  // Funzione per verificare se un file è visualizzabile
+  const isPreviewable = (file) => {
+    return file.type.includes('image') || 
+           file.type.includes('pdf') || 
+           file.type.includes('text') ||
+           ['.txt', '.csv', '.json'].some(ext => file.name.endsWith(ext))
   }
 
   const handleFileUpload = async (e) => {
@@ -361,6 +449,15 @@ export default function NutritionPlan() {
                       <td className="text-center">{formatFileSize(file.size)}</td>
                       <td>{new Date(file.uploadedAt).toLocaleDateString('it-IT')}</td>
                       <td className="text-center">
+                        {isPreviewable(file) && (
+                          <button 
+                            className="btn btn-sm btn-outline-primary me-2"
+                            onClick={() => openPreview(file)}
+                            title="Visualizza anteprima"
+                          >
+                            <i className="bi bi-eye"></i>
+                          </button>
+                        )}
                         <button 
                           className="btn btn-sm btn-outline-success me-2"
                           onClick={() => downloadFile(file)}
@@ -382,6 +479,69 @@ export default function NutritionPlan() {
           )}
         </div>
       </div>
+
+      {/* Modal Anteprima File */}
+      <div 
+        className="modal fade" 
+        id="filePreviewModal" 
+        tabIndex="-1" 
+        aria-labelledby="filePreviewModalLabel" 
+        aria-hidden="true"
+        style={{ display: showPreviewModal ? 'block' : 'none' }}
+      >
+        <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+          <div className="modal-content">
+            <div className="modal-header">
+              <h5 className="modal-title" id="filePreviewModalLabel">
+                <i className={`bi bi-file-earmark-${getFileIcon(previewFile?.type)} me-2`}></i>
+                {previewFile?.name}
+              </h5>
+              <button 
+                type="button" 
+                className="btn-close" 
+                onClick={closePreview}
+                aria-label="Chiudi"
+              ></button>
+            </div>
+            <div className="modal-body">
+              {previewFile && renderPreview(previewFile)}
+            </div>
+            <div className="modal-footer">
+              <div className="d-flex justify-content-between align-items-center w-100">
+                <div>
+                  <span className="text-muted me-3">
+                    <i className="bi bi-filetype-text me-1"></i>
+                    {previewFile?.type || 'Sconosciuto'}
+                  </span>
+                  <span className="text-muted">
+                    <i className="bi bi-hdd me-1"></i>
+                    {previewFile ? formatFileSize(previewFile.size) : ''}
+                  </span>
+                </div>
+                <div>
+                  <button className="btn btn-outline-secondary me-2" onClick={closePreview}>
+                    Chiudi
+                  </button>
+                  {previewFile && (
+                    <button className="btn btn-primary" onClick={() => downloadFile(previewFile)}>
+                      <i className="bi bi-download me-1"></i>Scarica
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Overlay per chiudere la modal cliccando fuori */}
+      {showPreviewModal && (
+        <div 
+          className="modal-backdrop fade show"
+          onClick={closePreview}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1040 }}
+        ></div>
+      )}
     </>
   )
 }

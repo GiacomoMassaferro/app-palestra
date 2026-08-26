@@ -17,6 +17,7 @@ Un'applicazione web embrionale per gestire dieta e routine di palestra. Versione
   - Download e eliminazione file
   - Salvataggio come Base64 (limite 4MB per file)
   - Metadata AI-friendly per futuri bot AI
+  - **Visualizzazione file nella pagina**: Immagini, PDF e file testuali visualizzabili in una modal di anteprima
 - **Persistenza dati**: Salvataggio automatico in localStorage
 
 ## Stack Tecnologico

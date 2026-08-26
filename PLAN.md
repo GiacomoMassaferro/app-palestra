@@ -135,6 +135,10 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - [x] Struttura dati AI-friendly con metadata per futuri bot AI
 - [x] Gestione Base64 per file fino a 4MB
 - [x] Icone specifiche per tipo di file (PDF, immagini, ecc.)
+- [x] Aggiungere modal di anteprima file per WorkoutPlan
+- [x] Aggiungere modal di anteprima file per NutritionPlan
+- [x] Visualizzazione immagini, PDF e file testuali nella modal
+- [x] Pulsante "Visualizza" per file previewable
 - [x] Verificare OXLint: 0 warnings, 0 errors
 - [x] Verificare build: success
 
@@ -158,5 +162,7 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - [x] Aggiunta gestione file con upload Base64
 - [x] Aggiunta sezione file a WorkoutPlan e NutritionPlan
 - [x] Struttura dati AI-friendly per futuri bot
+- [x] Aggiunta modal di anteprima per visualizzazione file
+- [x] Visualizzazione immagini, PDF, file testuali nella pagina
 - [x] Verifica OXLint: 0 warnings, 0 errors
 - [x] Verifica build: success

@@ -488,31 +488,59 @@ export default function NutritionPlan() {
         </div>
       </div>
 
-      {/* Modal Anteprima File */}
+      {/* Modal Anteprima File - Custom implementation senza Bootstrap JS */}
+      {showPreviewModal && (
+        <div 
+          className="modal-backdrop fade show"
+          onClick={closePreview}
+          style={{ 
+            position: 'fixed', 
+            top: 0, 
+            left: 0, 
+            right: 0, 
+            bottom: 0, 
+            zIndex: 1040,
+            backgroundColor: 'rgba(0, 0, 0, 0.5)'
+          }}
+        ></div>
+      )}
+      
       <div 
-        className="modal fade" 
-        id="filePreviewModal" 
+        className={`modal fade ${showPreviewModal ? 'show d-block' : 'd-none'}`} 
         tabIndex="-1" 
-        aria-labelledby="filePreviewModalLabel" 
-        aria-hidden="true"
-        style={{ display: showPreviewModal ? 'block' : 'none' }}
+        style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0,
+          zIndex: 1050,
+          width: '100%',
+          height: '100%',
+          overflowX: 'hidden',
+          overflowY: 'auto'
+        }}
       >
         <div className="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
           <div className="modal-content">
             <div className="modal-header">
-              <h5 className="modal-title" id="filePreviewModalLabel">
+              <h5 className="modal-title">
                 <i className={`bi bi-file-earmark-${getFileIcon(previewFile?.type)} me-2`}></i>
-                {previewFile?.name}
+                {previewFile?.name || 'File'}
               </h5>
               <button 
                 type="button" 
-                className="btn-close" 
+                className="btn-close btn-close-white" 
                 onClick={closePreview}
                 aria-label="Chiudi"
               ></button>
             </div>
             <div className="modal-body">
-              {previewFile && renderPreview(previewFile)}
+              {previewFile ? renderPreview(previewFile) : (
+                <div className="text-center py-5">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Caricamento...</span>
+                  </div>
+                </div>
+              )}
             </div>
             <div className="modal-footer">
               <div className="d-flex justify-content-between align-items-center w-100">
@@ -527,7 +555,7 @@ export default function NutritionPlan() {
                   </span>
                 </div>
                 <div>
-                  <button className="btn btn-outline-secondary me-2" onClick={closePreview}>
+                  <button className="btn btn-outline-light me-2" onClick={closePreview}>
                     Chiudi
                   </button>
                   {previewFile && (
@@ -541,15 +569,6 @@ export default function NutritionPlan() {
           </div>
         </div>
       </div>
-
-      {/* Overlay per chiudere la modal cliccando fuori */}
-      {showPreviewModal && (
-        <div 
-          className="modal-backdrop fade show"
-          onClick={closePreview}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 1040 }}
-        ></div>
-      )}
     </>
   )
 }

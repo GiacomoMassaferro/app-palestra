@@ -31,12 +31,14 @@ export default function WorkoutPlan() {
   }
 
   const getFileIcon = (mimeType) => {
-    if (mimeType.includes('pdf')) return 'pdf'
-    if (mimeType.includes('image')) return 'image'
-    if (mimeType.includes('word')) return 'text'
-    if (mimeType.includes('excel') || mimeType.includes('spreadsheet')) return 'spreadsheet'
-    if (mimeType.includes('text')) return 'text'
-    if (mimeType.includes('zip') || mimeType.includes('compressed')) return 'zip'
+    if (!mimeType) return 'fill'
+    const mime = mimeType.toLowerCase()
+    if (mime.includes('pdf')) return 'pdf'
+    if (mime.includes('image')) return 'image'
+    if (mime.includes('word')) return 'text'
+    if (mime.includes('excel') || mime.includes('spreadsheet')) return 'spreadsheet'
+    if (mime.includes('text')) return 'text'
+    if (mime.includes('zip') || mime.includes('compressed')) return 'zip'
     return 'fill'
   }
 
@@ -63,14 +65,15 @@ export default function WorkoutPlan() {
 
   // Funzione per rendere l'anteprima del file
   const renderPreview = (file) => {
-    if (!file) return null
+    if (!file || !file.data) return null
+    const type = (file.type || '').toLowerCase()
 
     // Immagini
-    if (file.type.includes('image')) {
+    if (type.includes('image')) {
       return (
         <img 
           src={file.data} 
-          alt={file.name} 
+          alt={file.name || 'File'} 
           className="img-fluid rounded"
           style={{ maxHeight: '70vh', maxWidth: '100%' }}
         />
@@ -78,12 +81,12 @@ export default function WorkoutPlan() {
     }
 
     // PDF
-    if (file.type.includes('pdf')) {
+    if (type.includes('pdf')) {
       return (
         <div className="ratio ratio-16x9">
           <iframe 
             src={file.data} 
-            title={file.name}
+            title={file.name || 'File'}
             className="w-100 h-100 border-0"
           />
         </div>
@@ -91,7 +94,10 @@ export default function WorkoutPlan() {
     }
 
     // Testo (TXT, CSV, JSON, ecc.)
-    if (file.type.includes('text') || file.name.endsWith('.txt') || file.name.endsWith('.csv') || file.name.endsWith('.json')) {
+    if (type.includes('text') || 
+        file.name.endsWith('.txt') || 
+        file.name.endsWith('.csv') || 
+        file.name.endsWith('.json')) {
       return (
         <div 
           className="bg-light p-3 rounded" 
@@ -107,7 +113,7 @@ export default function WorkoutPlan() {
             Anteprima testuale - Contenuto parziale per file di grandi dimensioni
           </p>
           <p>
-            Questo file ({file.type}) può essere visualizzato come testo. 
+            Questo file ({type || file.type || 'sconosciuto'}) può essere visualizzato come testo. 
             Per vedere il contenuto completo, scarica il file.
           </p>
         </div>
@@ -117,8 +123,8 @@ export default function WorkoutPlan() {
     // Altri tipi
     return (
       <div className="text-center py-5">
-        <i className={`bi bi-file-earmark-${getFileIcon(file.type)} fs-1 text-primary mb-3`}></i>
-        <h5>{file.name}</h5>
+        <i className={`bi bi-file-earmark-${getFileIcon(type)} fs-1 text-primary mb-3`}></i>
+        <h5>{file.name || 'File sconosciuto'}</h5>
         <p className="text-muted">Anteprima non disponibile per questo tipo di file</p>
         <button className="btn btn-primary" onClick={() => downloadFile(file)}>
           <i className="bi bi-download me-2"></i>Scarica File
@@ -129,9 +135,11 @@ export default function WorkoutPlan() {
 
   // Funzione per verificare se un file è visualizzabile
   const isPreviewable = (file) => {
-    return file.type.includes('image') || 
-           file.type.includes('pdf') || 
-           file.type.includes('text') ||
+    if (!file) return false
+    const type = (file.type || '').toLowerCase()
+    return type.includes('image') || 
+           type.includes('pdf') || 
+           type.includes('text') ||
            ['.txt', '.csv', '.json'].some(ext => file.name.endsWith(ext))
   }
 

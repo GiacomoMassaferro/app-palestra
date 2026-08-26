@@ -1,88 +1,37 @@
-import { createContext, useContext, useState, useEffect } from 'react'
-import { mockUsers } from '../data/mockData'
+// Contesto base per autenticazione (da implementare)
+// Mantiene struttura per future espansioni
+
+import { createContext, useState } from 'react'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-    const [user, setUser] = useState(null)
-    const [loading, setLoading] = useState(true)
+  const [user, setUser] = useState(() => {
+    const storedUser = localStorage.getItem('palestra_user')
+    return storedUser ? JSON.parse(storedUser) : null
+  })
 
-    useEffect(() => {
-        // Carica utente da localStorage al montaggio
-        const savedUser = localStorage.getItem('palestra_user')
-        if (savedUser) {
-            try {
-                setUser(JSON.parse(savedUser))
-            } catch (e) {
-                console.error('Errore caricamento utente:', e)
-            }
-        }
-        setLoading(false)
-    }, [])
+  const login = (userData) => {
+    localStorage.setItem('palestra_user', JSON.stringify(userData))
+    setUser(userData)
+  }
 
-    const login = (userData) => {
-        const userWithTimestamp = {
-            ...userData,
-            createdAt: new Date().toISOString(),
-            lastLogin: new Date().toISOString()
-        }
-        localStorage.setItem('palestra_user', JSON.stringify(userWithTimestamp))
-        setUser(userWithTimestamp)
-        return userWithTimestamp
-    }
+  const logout = () => {
+    localStorage.removeItem('palestra_user')
+    setUser(null)
+  }
 
-    const loginWithCredentials = (email, password) => {
-        // Cerca utente mock
-        const user = mockUsers.find(u => u.email.toLowerCase() === email.toLowerCase() && u.password === password)
-        
-        if (user) {
-            // Calcola eta aggiornata
-            const userWithTimestamp = {
-                ...user,
-                eta: new Date().getFullYear() - user.annoNascita,
-                createdAt: new Date().toISOString(),
-                lastLogin: new Date().toISOString()
-            }
-            localStorage.setItem('palestra_user', JSON.stringify(userWithTimestamp))
-            setUser(userWithTimestamp)
-            return { success: true, user: userWithTimestamp }
-        }
-        
-        return { success: false, error: 'Email o password errati' }
-    }
+  const updateUser = (newData) => {
+    const updatedUser = { ...user, ...newData }
+    localStorage.setItem('palestra_user', JSON.stringify(updatedUser))
+    setUser(updatedUser)
+  }
 
-    const logout = () => {
-        localStorage.removeItem('palestra_user')
-        setUser(null)
-    }
-
-    const updateUser = (updates) => {
-        if (!user) return null
-        
-        const updatedUser = {
-            ...user,
-            ...updates,
-            lastLogin: new Date().toISOString()
-        }
-        localStorage.setItem('palestra_user', JSON.stringify(updatedUser))
-        setUser(updatedUser)
-        return updatedUser
-    }
-
-    const isAuthenticated = !!user
-
-    return (
-        <AuthContext.Provider value={{ user, login, loginWithCredentials, logout, updateUser, isAuthenticated, loading }}>
-            {children}
-        </AuthContext.Provider>
-    )
+  return (
+    <AuthContext.Provider value={{ user, login, logout, updateUser }}>
+      {children}
+    </AuthContext.Provider>
+  )
 }
 
-// eslint-disable-next-line react/only-export-components
-export function useAuth() {
-    const context = useContext(AuthContext)
-    if (context === undefined) {
-        throw new Error('useAuth deve essere usato dentro AuthProvider')
-    }
-    return context
-}
+export { AuthContext }

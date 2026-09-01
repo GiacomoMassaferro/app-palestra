@@ -13,7 +13,22 @@ export default function MainLayout({ children }) {
           </button>
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav ms-auto">
-              <li className="nav-item dropdown">
+              {/* Voci per mobile - visibili solo su mobile */}
+              <li className="nav-item d-lg-none">
+                <Link className="nav-link" to="/">Calendario</Link>
+              </li>
+              <li className="nav-item d-lg-none">
+                <Link className="nav-link" to="/settings">Impostazioni</Link>
+              </li>
+              <li className="nav-item d-lg-none">
+                <Link className="nav-link" to="/workout-plan">Scheda Allenamento</Link>
+              </li>
+              <li className="nav-item d-lg-none">
+                <Link className="nav-link" to="/nutrition-plan">Scheda Nutrizionale</Link>
+              </li>
+              
+              {/* Dropdown menu per desktop - nascosti su mobile */}
+              <li className="nav-item dropdown d-none d-lg-block">
                 <button
                   className="nav-link dropdown-toggle btn btn-link"
                   type="button"

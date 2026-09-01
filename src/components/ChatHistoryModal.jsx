@@ -1,5 +1,4 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 
 export default function ChatHistoryModal() {
   const [showHistory, setShowHistory] = useState(false)
@@ -68,17 +67,13 @@ export default function ChatHistoryModal() {
 
   return (
     <>
-      {/* Voce nel menu per aprire lo storico - visibile solo su desktop */}
-      <Link 
-        className="nav-link d-none d-lg-inline"
-        to="#"
-        onClick={(e) => {
-          e.preventDefault()
-          openHistory()
-        }}
+      {/* Voce nel dropdown menu per aprire lo storico - visibile solo su desktop */}
+      <button 
+        className="dropdown-item w-100 text-start d-none d-lg-block"
+        onClick={openHistory}
       >
-        <i className="bi bi-clock-history me-1"></i>Storico Chat
-      </Link>
+        <i className="bi bi-clock-history me-2"></i>Storico Chat
+      </button>
 
       {/* Modal Storico Chat */}
       {showHistory && (

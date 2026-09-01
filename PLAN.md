@@ -157,7 +157,7 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 - [x] Aggiunta voce "Storico Chat" nel menù (solo desktop, d-none d-lg-inline)
 - [x] ChatBot salva automaticamente le conversazioni in localStorage
 - [x] ChatHistoryModal permette di visualizzare e leggere le chat storiche
-- [x] Semplificato MainLayout: voci menu dirette (non più dropdown personalizzato)
+- [x] Ripristinato dropdown menu per desktop in MainLayout
 - [x] Bootstrap navbar-collapse gestisce automaticamente la visualizzazione mobile
 - [x] Verificato OXLint: 0 errors (1 warning ottimizzazione)
 - [x] Verificato build: success

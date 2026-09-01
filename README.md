@@ -149,10 +149,11 @@ Il bot AI e' predisposto per interagire con le pagine dell'applicazione:
 
 **Interfaccia Utente:**
 - Pulsante **AI** nella navbar per aprire la chat
-- **Storico Chat** nel menù per accedere alle conversazioni in sola lettura - **disponibile solo su desktop**
+- **Menù a tendina "Menu"** con tutte le voci (Calendario, Impostazioni, Schede, Storico Chat)
+- **Storico Chat** accessibile dal menù a tendina - **disponibile solo su desktop**
 - Modal con interfaccia chat
 - **Salvataggio automatico** delle conversazioni in localStorage
-- Menu di navigazione responsive gestito da Bootstrap navbar-collapse
+- Menu di navigazione responsive gestito da Bootstrap navbar-collapse (su mobile)
 - Suggerimenti rapidi preimpostati
 - Supporto per navigazione automatica tra pagine
 - Supporto per modifiche automatiche ai dati (settings, esercizi, pasti)

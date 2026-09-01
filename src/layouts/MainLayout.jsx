@@ -13,20 +13,36 @@ export default function MainLayout({ children }) {
           </button>
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav ms-auto">
-              <li className="nav-item">
-                <Link className="nav-link" to="/">Calendario</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/settings">Impostazioni</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/workout-plan">Scheda Allenamento</Link>
-              </li>
-              <li className="nav-item">
-                <Link className="nav-link" to="/nutrition-plan">Scheda Nutrizionale</Link>
-              </li>
-              <li className="nav-item">
-                <ChatHistoryModal />
+              <li className="nav-item dropdown">
+                <button
+                  className="nav-link dropdown-toggle btn btn-link"
+                  type="button"
+                  data-bs-toggle="dropdown"
+                  aria-expanded="false"
+                >
+                  Menu
+                </button>
+                <ul className="dropdown-menu dropdown-menu-end">
+                  <li>
+                    <Link className="dropdown-item" to="/">Calendario</Link>
+                  </li>
+                  <li>
+                    <Link className="dropdown-item" to="/settings">Impostazioni</Link>
+                  </li>
+                  <li>
+                    <Link className="dropdown-item" to="/workout-plan">Scheda Allenamento</Link>
+                  </li>
+                  <li>
+                    <Link className="dropdown-item" to="/nutrition-plan">Scheda Nutrizionale</Link>
+                  </li>
+                  <li>
+                    <hr className="dropdown-divider" />
+                  </li>
+                  <li className="dropdown-header">Chat AI</li>
+                  <li>
+                    <ChatHistoryModal />
+                  </li>
+                </ul>
               </li>
             </ul>
             <ChatBot />

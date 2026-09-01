@@ -1,4 +1,6 @@
 import { Link } from 'react-router-dom'
+import ChatBot from '../components/ChatBot'
+import ChatHistoryModal from '../components/ChatHistoryModal'
 
 export default function MainLayout({ children }) {
   return (
@@ -10,7 +12,7 @@ export default function MainLayout({ children }) {
             <span className="navbar-toggler-icon"></span>
           </button>
           <div className="collapse navbar-collapse" id="navbarNav">
-            <ul className="navbar-nav">
+            <ul className="navbar-nav ms-auto">
               <li className="nav-item">
                 <Link className="nav-link" to="/">Calendario</Link>
               </li>
@@ -23,7 +25,11 @@ export default function MainLayout({ children }) {
               <li className="nav-item">
                 <Link className="nav-link" to="/nutrition-plan">Scheda Nutrizionale</Link>
               </li>
+              <li className="nav-item">
+                <ChatHistoryModal />
+              </li>
             </ul>
+            <ChatBot />
           </div>
         </div>
       </nav>

@@ -91,15 +91,12 @@ src/
 ## Prossimi Passi
 
 ### Priorita Alta:
-1. Creare pagina Settings con form di configurazione
-2. Salvare configurazione in localStorage
-3. Aggiungere pagina DayDetails per visualizzare dettagli del giorno
-4. Implementare navigazione tra pagine
+1. Aggiungere pagina DayDetails per visualizzare dettagli del giorno
 
 ### Priorita Media:
-1. Implementare integrazione API Mistral per suggerimenti
-2. Aggiungere logica per generazione dieta e routine
-3. Implementare chatbot base per interazione utente
+1. Implementare interfaccia chatbot per interazione con Mistral AI
+2. Creare system prompt personalizzato per il bot
+3. Aggiungere logica per generazione dieta e routine
 
 ### Priorita Bassa:
 1. Gestione ferie
@@ -145,6 +142,38 @@ Il bot AI sara sviluppato in modo diverso rispetto alla versione precedente:
 ---
 
 ## Changelog Giornaliero
+
+### 2025-10-29
+- [x] Sostituite voci di navigazione in testata con menù a tendina responsive
+- [x] Implementazione API Mistral in services/mistral.js
+- [x] Aggiunti .env e .env.example per configurazione chiave API
+- [x] Predisposto routing delle risposte con ACTION_TYPES e AVAILABLE_PAGES
+- [x] Aggiunte funzioni: callMistralApi, parseBotResponse, chatWithMistral, generateSuggestions, executeBotCommand
+- [x] Creato componente ChatBot in components/ChatBot.jsx
+- [x] Integrazione ChatBot in MainLayout con pulsante e modal
+- [x] Aggiunte funzionalità: navigazione, modifiche dati tramite bot
+- [x] Rimosso pulsante cestino dal modal ChatBot
+- [x] Creato componente ChatHistoryModal in components/ChatHistoryModal.jsx
+- [x] Aggiunta voce "Storico Chat" nel menù (solo desktop, d-none d-lg-inline)
+- [x] ChatBot salva automaticamente le conversazioni in localStorage
+- [x] ChatHistoryModal permette di visualizzare e leggere le chat storiche
+- [x] Semplificato MainLayout: voci menu dirette (non più dropdown personalizzato)
+- [x] Bootstrap navbar-collapse gestisce automaticamente la visualizzazione mobile
+- [x] Verificato OXLint: 0 errors (1 warning ottimizzazione)
+- [x] Verificato build: success
+
+### 2025-10-28
+- [x] Creazione SettingsContext
+- [x] Aggiornamento MainLayout e App.jsx
+- [x] Creazione pagine Settings, WorkoutPlan, NutritionPlan
+- [x] Aggiornamento Home.jsx per usare SettingsContext
+- [x] Aggiunta gestione file con upload Base64
+- [x] Aggiunta sezione file a WorkoutPlan e NutritionPlan
+- [x] Struttura dati AI-friendly per futuri bot
+- [x] Aggiunta modal di anteprima per visualizzazione file
+- [x] Visualizzazione immagini, PDF, file testuali nella pagina
+- [x] Verifica OXLint: 0 warnings, 0 errors
+- [x] Verifica build: success
 
 ### 2026-08-26
 - [x] Ricreato progetto da zero con versione embrionale

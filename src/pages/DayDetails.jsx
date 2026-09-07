@@ -9,13 +9,29 @@ export default function DayDetails() {
     const [activeTab, setActiveTab] = useState('allenamento')
 
     useEffect(() => {
+        // NOTA 2026-09-05: guard se manca param data
+        if (!date) {
+            setDayData(null)
+            setLoading(false)
+            return
+        }
+        // NOTA 2026-09-05: parse sicuro, mai crash su localStorage corrotto
+        const safeParse = (v, fallback = null) => {
+            if (!v) return fallback
+            try {
+                const p = JSON.parse(v)
+                return p ?? fallback
+            } catch {
+                return fallback
+            }
+        }
         const savedData = localStorage.getItem('palestra_data')
         const savedSuggestions = localStorage.getItem('palestra_suggestions')
         const savedVacation = localStorage.getItem('palestra_vacation')
 
-        const data = savedData ? JSON.parse(savedData) : null
-        const suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : null
-        const vacationData = savedVacation ? JSON.parse(savedVacation) : null
+        const data = safeParse(savedData, null)
+        const suggestions = safeParse(savedSuggestions, null)
+        const vacationData = safeParse(savedVacation, null)
 
         // Normalizza giorno senza accenti (Lunedi con accento -> Lunedi)
         const normalizza = (g) => {
@@ -35,7 +51,7 @@ export default function DayDetails() {
         // Risolvi nome giorno: se date e YYYY-MM-DD converti in weekday, se e nome usalo diretto
         const giorniCanonici = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato']
         let dayName = null
-        if (date && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+        if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
             const d = new Date(date + 'T12:00:00')
             dayName = giorniCanonici[d.getDay()]
         } else {
@@ -43,9 +59,9 @@ export default function DayDetails() {
         }
 
         // Verifica se è un giorno di ferie (le ferie sovrascrivono tutto)
-        // NOTA 2026-09-05: confronto stringhe YYYY-MM-DD per evitare shift UTC
+        // NOTA 2026-09-05: confronto stringhe YYYY-MM-DD + guard date assente
         const isVacationDay = vacationData?.vacationPeriods?.some(period => {
-            if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            if (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
                 return date >= period.startDate && date <= period.endDate
             }
             return false
@@ -57,8 +73,24 @@ export default function DayDetails() {
         let mealInfo = null
         let calendarSuggestions = []
         let isFallbackDiet = false
+        let isEccezioneSingola = false
 
-        if (!isVacationDay && dayName) {
+        // Eccezione singola data ha priorita sul template settimanale
+        const eccezioneData = (date && /^\d{4}-\d{2}-\d{2}$/.test(date)) ? suggestions?.eccezioni?.[date] : null
+        if (!isVacationDay && eccezioneData) {
+            isEccezioneSingola = true
+            const isLibero = eccezioneData.libero || eccezioneData.scheda === 'Giorno libero' || eccezioneData.scheda === 'Riposo'
+            workoutInfo = isLibero ? { scheda: 'Giorno libero', durata: '', esercizi: [] } : { ...eccezioneData }
+            // Dieta resta quella del weekday per le eccezioni workout
+            const dietaGiorno = cercaPerGiorno(suggestions?.dieta, dayName)
+            if (dietaGiorno?.pasti) {
+                mealInfo = dietaGiorno.pasti
+            } else if (data?.orariPasti && Object.keys(data.orariPasti).length > 0) {
+                mealInfo = data.orariPasti
+            }
+        }
+
+        if (!isVacationDay && !isEccezioneSingola && dayName) {
             // Routine da suggestions (prova con e senza accenti)
             workoutInfo = cercaPerGiorno(suggestions?.routine, dayName) || cercaPerGiorno(suggestions?.routine, date)
             // Se giorno in workoutDays ma senza scheda dettaglio, crea info minima per non mostrare Riposo
@@ -87,7 +119,7 @@ export default function DayDetails() {
             calendarSuggestions = cercaPerGiorno(suggestions?.calendario, dayName)?.suggerimenti || cercaPerGiorno(suggestions?.calendario, date)?.suggerimenti || []
         }
 
-        setDayData({ workoutInfo, mealInfo, calendarSuggestions, isVacationDay, vacationSuggestion, dayName, isFallbackDiet })
+        setDayData({ workoutInfo, mealInfo, calendarSuggestions, isVacationDay, vacationSuggestion, dayName, isFallbackDiet, isEccezioneSingola })
         setLoading(false)
     }, [date])
 
@@ -218,7 +250,7 @@ export default function DayDetails() {
                 {/* Allenamento */}
                 {activeTab === 'allenamento' && (
                     <div className="tab-pane fade show active">
-                        {dayData.workoutInfo ? (
+                        {dayData.workoutInfo && dayData.workoutInfo.scheda !== 'Giorno libero' && dayData.workoutInfo.scheda !== 'Riposo' ? (
                             <div className="row g-3">
                                 {/* Card Info Allenamento */}
                                 <div className="col-md-12">
@@ -279,8 +311,8 @@ export default function DayDetails() {
                             <div className="card border-0 shadow-sm text-center py-5">
                                 <div className="card-body">
                                     <i className="bi bi-emoji-smile text-success fs-1 mb-3"></i>
-                                    <h4>Giorno di riposo</h4>
-                                    <p className="text-muted">Oggi non ci sono allenamenti programmati</p>
+                                    <h4>{dayData.workoutInfo?.scheda === 'Giorno libero' ? 'Giorno libero' : 'Giorno di riposo'}</h4>
+                                    <p className="text-muted">{dayData.workoutInfo?.scheda === 'Giorno libero' ? 'Allenamento spostato altrove. Goditi il recupero.' : 'Oggi non ci sono allenamenti programmati'}</p>
                                 </div>
                             </div>
                         )}

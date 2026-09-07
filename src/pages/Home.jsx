@@ -160,9 +160,11 @@ export default function Home() {
             const dateStr = `${y}-${m}-${g}`
             
             // Verifica se c'e' allenamento per questo giorno (con normalizzazione accenti)
+            // NOTA 2026-09-05: Giorno libero/Riposo non mostra mai icone anche se in workoutDays
             const routine = trovaDatiGiorno(palestraSuggestions?.routine, dayName)
-            const hasWorkout = includeWorkoutDay(palestraData?.workoutDays, dayName) ||
-                              (Array.isArray(routine.esercizi) && routine.esercizi.length > 0)
+            const isGiornoLibero = routine?.scheda === 'Giorno libero' || routine?.scheda === 'Riposo'
+            const hasWorkout = !isGiornoLibero && (includeWorkoutDay(palestraData?.workoutDays, dayName) ||
+                              (Array.isArray(routine.esercizi) && routine.esercizi.length > 0))
             
             // Raccolgo i pasti per questo giorno
             const meals = []
@@ -188,10 +190,25 @@ export default function Home() {
             // Verifica se ci sono suggerimenti specifici per le ferie per questo giorno
             const vacationSuggestion = vacationData?.vacationSuggestions?.[dateStr] || null
 
+            // Eccezione singola data (sposta 7->13): sovrascrive template settimanale
+            const eccezione = palestraSuggestions?.eccezioni?.[dateStr] || null
+            let effHasWorkout = hasWorkout
+            let effWorkoutName = routine.scheda || ''
+            if (eccezione) {
+                const isLibero = eccezione.libero || eccezione.scheda === 'Giorno libero' || eccezione.scheda === 'Riposo'
+                if (isLibero) {
+                    effHasWorkout = false
+                    effWorkoutName = ''
+                } else {
+                    effHasWorkout = true
+                    effWorkoutName = eccezione.scheda || effWorkoutName
+                }
+            }
+
             // Se ferie, azzera palestra/pasti: mostra solo simboli vacanza
-            const finalHasWorkout = isVacation ? false : hasWorkout
+            const finalHasWorkout = isVacation ? false : effHasWorkout
             const finalMeals = isVacation ? [] : meals
-            const finalWorkoutName = isVacation ? '' : (routine.scheda || '')
+            const finalWorkoutName = isVacation ? '' : effWorkoutName
 
             monthDays.push({
                 number: dayNum,
@@ -237,10 +254,11 @@ export default function Home() {
         const currentMinute = now.getMinutes()
         const currentTime = currentHour * 60 + currentMinute
 
-        // Verifica se oggi c'e' allenamento (con normalizzazione accenti)
+        // Verifica se oggi c'e' allenamento (con normalizzazione accenti, Giorno libero escluso)
         const routineToday = (palestraSuggestions?.routine?.[currentDayName] || palestraSuggestions?.routine?.[normalizzaGiorno(currentDayName)] || {})
-        const hasWorkoutToday = includeWorkoutDay(palestraData?.workoutDays, currentDayName) ||
-                                (Array.isArray(routineToday.esercizi) && routineToday.esercizi.length > 0)
+        const isGiornoLiberoToday = routineToday?.scheda === 'Giorno libero' || routineToday?.scheda === 'Riposo'
+        const hasWorkoutToday = !isGiornoLiberoToday && (includeWorkoutDay(palestraData?.workoutDays, currentDayName) ||
+                                (Array.isArray(routineToday.esercizi) && routineToday.esercizi.length > 0))
 
         // Raccolgo tutti i pasti di oggi con orari
         const todayMeals = []
@@ -393,12 +411,17 @@ export default function Home() {
         let palestraSuggestions = null
         let vacationData = null
         let activities = []
-        
-        if (savedData) {
-            palestraData = JSON.parse(savedData)
+
+        // NOTA 2026-09-05: parse sicuro, mai crash su dati corrotti
+        try {
+            if (savedData) palestraData = JSON.parse(savedData)
+        } catch {
+            palestraData = null
         }
-        if (savedSuggestions) {
-            palestraSuggestions = JSON.parse(savedSuggestions)
+        try {
+            if (savedSuggestions) palestraSuggestions = JSON.parse(savedSuggestions)
+        } catch {
+            palestraSuggestions = null
         }
         if (savedVacation) {
             try {

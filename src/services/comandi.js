@@ -688,6 +688,150 @@ export function modificaRoutine(giorno, dati) {
 }
 
 /**
+ * Sposta allenamento da un giorno a un altro:
+ * - copia routine+calendario da `da` a `a` sovrascrivendo il giorno libero
+ * - imposta `da` come Giorno libero (scheda Riposo, zero esercizi) e rimuove icone
+ * - aggiorna workoutDays in palestra_data (toglie `da`, aggiunge `a`)
+ * @param {string} da - Giorno origine (es. 'Lunedi')
+ * @param {string} a - Giorno destinazione (es. 'Martedi')
+ */
+export function spostaAllenamento(da, a, dataDa = null, dataA = null) {
+    try {
+        // NOTA 2026-09-05: se date specifiche YYYY-MM-DD, sposta SOLO quelle 2 istanze via eccezioni
+        const isData = (s) => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s)
+        if (isData(dataDa) && isData(dataA) && dataDa !== dataA) {
+            const current = caricaDati('palestra_suggestions', { dieta: {}, routine: {}, calendario: {}, eccezioni: {} })
+            const eccezioni = { ...(current.eccezioni || {}) }
+            // Ricava routine del giorno origine (da template settimanale o eccezione esistente)
+            const dDa = new Date(dataDa + 'T12:00:00')
+            const GIORNI = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato']
+            const nomeDa = GIORNI[dDa.getDay()]
+            const routineOrigine = eccezioni[dataDa]?.routine || current.routine?.[nomeDa] || current.routine?.[normalizzaGiorno(nomeDa)] || { scheda: 'Allenamento', durata: '', esercizi: [] }
+            // Origine diventa Giorno libero solo per quella data
+            eccezioni[dataDa] = { scheda: 'Giorno libero', durata: '', esercizi: [], libero: true }
+            // Destinazione prende la routine spostata solo per quella data
+            eccezioni[dataA] = { ...routineOrigine, libero: false }
+            const updated = { ...current, eccezioni }
+            if (!salvaDati('palestra_suggestions', updated)) {
+                return { successo: false, messaggio: 'Errore nel salvataggio dello spostamento singolo', dati: null, refresh: false }
+            }
+            return { successo: true, messaggio: `Allenamento spostato solo da ${dataDa} a ${dataA}.`, dati: updated, refresh: false }
+        }
+        if (!da || !a) {
+            return { successo: false, messaggio: 'Specifica giorno origine e destinazione (da, a)', dati: null, refresh: false }
+        }
+        const daNorm = normalizzaGiorno(da)
+        const aNorm = normalizzaGiorno(a)
+        if (!daNorm || !aNorm) {
+            return { successo: false, messaggio: 'Giorni non validi', dati: null, refresh: false }
+        }
+        if (daNorm === aNorm) {
+            return { successo: false, messaggio: 'Origine e destinazione coincidono', dati: null, refresh: false }
+        }
+
+        const currentSuggestions = caricaDati('palestra_suggestions', { dieta: {}, routine: {}, calendario: {} })
+        const newRoutine = { ...(currentSuggestions.routine || {}) }
+        const newCalendario = { ...(currentSuggestions.calendario || {}) }
+
+        // Sorgente: se vuota, niente da spostare
+        const routineDa = newRoutine[daNorm] || newRoutine[da]
+        const hasEsercizi = routineDa && Array.isArray(routineDa.esercizi) && routineDa.esercizi.length > 0
+        const hasScheda = routineDa && routineDa.scheda && routineDa.scheda !== 'Giorno libero' && routineDa.scheda !== 'Riposo'
+        if (!routineDa || (!hasEsercizi && !hasScheda)) {
+            // Prova comunque da workoutDays: se `da` non e giorno palestra, avvisa
+            const checkData = caricaDati('palestra_data', { workoutDays: [] })
+            const inDays = Array.isArray(checkData.workoutDays) && checkData.workoutDays.some((d) => normalizzaGiorno(d) === daNorm)
+            if (!inDays) {
+                return { successo: false, messaggio: `Nessun allenamento da spostare in ${daNorm}`, dati: null, refresh: false }
+            }
+        }
+
+        // Destinazione: sovrascrivi giorno libero con routine spostata
+        const routineSpostata = { ...(routineDa || { scheda: 'Allenamento', durata: '', esercizi: [] }) }
+        newRoutine[aNorm] = routineSpostata
+        if (newCalendario[daNorm] || newCalendario[da]) {
+            newCalendario[aNorm] = newCalendario[daNorm] || newCalendario[da]
+        }
+
+        // Origine: Giorno libero, niente icone
+        newRoutine[daNorm] = { scheda: 'Giorno libero', durata: '', esercizi: [] }
+        if (newCalendario[daNorm]) {
+            delete newCalendario[daNorm]
+        }
+
+        const updatedSuggestions = { ...currentSuggestions, routine: newRoutine, calendario: newCalendario }
+        if (!salvaDati('palestra_suggestions', updatedSuggestions)) {
+            return { successo: false, messaggio: 'Errore nel salvataggio dello spostamento', dati: null, refresh: false }
+        }
+
+        // Aggiorna workoutDays: togli `da`, aggiungi `a`
+        try {
+            const palestraData = caricaDati('palestra_data', { workoutDays: [] })
+            let days = Array.isArray(palestraData.workoutDays) ? [...palestraData.workoutDays] : []
+            days = days.filter((d) => normalizzaGiorno(d) !== daNorm)
+            if (!days.some((d) => normalizzaGiorno(d) === aNorm)) {
+                days.push(aNorm)
+            }
+            salvaDati('palestra_data', { ...palestraData, workoutDays: days })
+        } catch {
+            // suggerimenti gia salvati, workoutDays opzionale
+        }
+
+        return {
+            successo: true,
+            messaggio: `Allenamento spostato da ${daNorm} a ${aNorm}. ${daNorm} ora e Giorno libero.`,
+            dati: updatedSuggestions,
+            refresh: false
+        }
+    } catch (e) {
+        return { successo: false, messaggio: `Errore nello spostamento: ${e.message}`, dati: null, refresh: false }
+    }
+}
+
+/**
+ * Ripristina allenamenti come da impostazioni (workoutDays in palestra_data):
+ * - giorni in workoutDays: se mancanti o Giorno libero, crea scheda Allenamento generica (preserva esistente)
+ * - giorni fuori workoutDays: imposta Giorno libero cosi spariscono le icone
+ */
+export function ripristinaAllenamenti() {
+    try {
+        const GIORNI = ['Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato', 'Domenica']
+        const palestraData = caricaDati('palestra_data', { workoutDays: [] })
+        const workoutDays = Array.isArray(palestraData.workoutDays) ? palestraData.workoutDays.map((d) => normalizzaGiorno(d)) : []
+        if (workoutDays.length === 0) {
+            return { successo: false, messaggio: 'Nessun giorno di allenamento nelle impostazioni', dati: null, refresh: false }
+        }
+        const currentSuggestions = caricaDati('palestra_suggestions', { dieta: {}, routine: {}, calendario: {} })
+        const newRoutine = { ...(currentSuggestions.routine || {}) }
+        const durataDefault = palestraData.durataAllenamento || ''
+        GIORNI.forEach((g) => {
+            const deveAllenarsi = workoutDays.includes(g)
+            const attuale = newRoutine[g]
+            const isLibero = !attuale || attuale.scheda === 'Giorno libero' || attuale.scheda === 'Riposo'
+            if (deveAllenarsi) {
+                if (isLibero) {
+                    newRoutine[g] = { scheda: 'Allenamento', durata: durataDefault, esercizi: [] }
+                }
+            } else {
+                newRoutine[g] = { scheda: 'Giorno libero', durata: '', esercizi: [] }
+            }
+        })
+        const updatedSuggestions = { ...currentSuggestions, routine: newRoutine }
+        if (!salvaDati('palestra_suggestions', updatedSuggestions)) {
+            return { successo: false, messaggio: 'Errore nel salvataggio del ripristino', dati: null, refresh: false }
+        }
+        return {
+            successo: true,
+            messaggio: `Allenamenti ripristinati come da impostazioni: ${workoutDays.join(', ')}.`,
+            dati: updatedSuggestions,
+            refresh: false
+        }
+    } catch (e) {
+        return { successo: false, messaggio: `Errore nel ripristino: ${e.message}`, dati: null, refresh: false }
+    }
+}
+
+/**
  * Applica tutte le modifiche suggerite dal chatbot
  * @param {object} modifiche - Oggetto con dieta e routine da modificare
  * @returns {object} Risultato dell'operazione
@@ -775,10 +919,10 @@ export function eseguiComando(tipo, parametri = {}) {
         console.log(`[COMANDO] Eseguo: tipo="${tipo}", parametri=`, parametri)
 
         // Se tipo e' un comando testuale completo (es: "/ferie 15-01 20-01")
-        // NOTA 2026-09-05: supporta anche spazi e slash nei nomi (es. "/piano rientro")
+        // NOTA 2026-09-05: supporta anche spazi e slash nei nomi (es. "/piano rientro", "/sposta Lunedi Martedi", "/ripristina")
         if (typeof tipo === 'string' && tipo.startsWith('/')) {
             // Prova a parsare il comando testuale
-            const commandMatch = tipo.match(/^\/(ferie|pasto|mangiato|ho\s*mangiato|attivita|fatto|ho\s*fatto|rientro|dieta|routine|modifiche|piano[\s\-_]*rientro|aggiorna[\s\-_]*piano)\s*(.*)?$/i)
+            const commandMatch = tipo.match(/^\/(ferie|pasto|mangiato|ho\s*mangiato|attivita|fatto|ho\s*fatto|rientro|dieta|routine|modifiche|sposta|ripristina|piano[\s\-_]*rientro|aggiorna[\s\-_]*piano)\s*(.*)?$/i)
             if (commandMatch) {
                 const cmdType = commandMatch[1].toLowerCase().replace(/[\s_-]/g, '').replace(/\//g, '')
                 const cmdArgs = commandMatch[2] ? commandMatch[2].trim() : ''
@@ -827,6 +971,20 @@ export function eseguiComando(tipo, parametri = {}) {
                     case 'pianorientro':
                         console.log(`[COMANDO] Rientro: generando piano di rientro`)
                         return generaPianoRientro(null)
+
+                    case 'sposta':
+                    case 'spostaallenamento':
+                    case 'spostaroutine': {
+                        const m = cmdArgs.match(/([A-Za-zàèéìòù]+)\s+(?:a|su|->|in)\s+([A-Za-zàèéìòù]+)/i) || cmdArgs.match(/([A-Za-zàèéìòù]+)\s+([A-Za-zàèéìòù]+)/)
+                        if (!m) {
+                            return { successo: false, messaggio: 'Formato sposta non valido. Usa: /sposta Lunedi Martedi', dati: null, refresh: false }
+                        }
+                        return spostaAllenamento(m[1], m[2])
+                    }
+
+                    case 'ripristina':
+                    case 'ripristinaallenamenti':
+                        return ripristinaAllenamenti()
 
                     default:
                         console.warn(`[COMANDO] Comando testuale non supportato: ${tipo}`)
@@ -889,11 +1047,18 @@ export function eseguiComando(tipo, parametri = {}) {
             case 'modifiche':
                 console.log(`[COMANDO] Modifiche: modifiche=`, parametri.modifiche)
                 return applicaModifiche(parametri.modifiche || {})
+            case 'sposta':
+            case 'spostaallenamento':
+            case 'spostaroutine':
+                return spostaAllenamento(parametri.da || parametri.from || parametri.origine, parametri.a || parametri.to || parametri.destinazione, parametri.dataDa || parametri.data_da, parametri.dataA || parametri.data_a)
+            case 'ripristina':
+            case 'ripristinaallenamenti':
+                return ripristinaAllenamenti()
             default:
                 console.warn(`[COMANDO] Comando sconosciuto: ${tipo} (normalizzato: ${tipoNormalizzato})`)
                 return {
                     successo: false,
-                    messaggio: `Comando sconosciuto: ${tipo}. Comandi validi: ferie, pasto, mangiato, attivita, fatto, rientro, dieta, routine, modifiche`,
+                    messaggio: `Comando sconosciuto: ${tipo}. Comandi validi: ferie, pasto, mangiato, attivita, fatto, rientro, dieta, routine, modifiche, sposta, ripristina`,
                     dati: null,
                     refresh: false
                 }

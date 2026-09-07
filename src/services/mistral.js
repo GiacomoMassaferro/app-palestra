@@ -313,7 +313,12 @@ export function saveSuggestions(suggestions) {
 
 export function loadSuggestions() {
     const saved = localStorage.getItem('palestra_suggestions')
-    return saved ? JSON.parse(saved) : null
+    if (!saved) return null
+    try {
+        return JSON.parse(saved)
+    } catch {
+        return null
+    }
 }
 
 const CHAT_PROMPT_TEMPLATE = `
@@ -353,9 +358,15 @@ COMANDI DISPONIBILI (usa ESATTAMENTE questi valori in "tipo", mai con slash o sp
 - dieta: {giorno: Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato|Domenica, pasti: {...}}
 - routine: {giorno: Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato|Domenica, dati: {...}}
 - modifiche: {modifiche: {dieta: {...}, routine: {...}}}
+- sposta: {da: Lunedi|..., a: Lunedi|...} per spostare UN solo allenamento (libera origine come Giorno libero e sovrascrive destinazione)
+- ripristina: {} per ripristinare tutti gli allenamenti come da workoutDays nelle impostazioni
 
 REGOLE:
 - Mai usare "pasto/mangiato" o "rientro/aggiorna_piano" come tipo, sono due alias separati.
+- Se l'utente dice "sposta allenamento da X a Y" (nomi settimana), usa SEMPRE solo {"tipo":"sposta","parametri":{"da":"X","a":"Y"}} per tutta la settimana.
+- Se dice "oggi", "domani", "domenica prossima" o date precise, usa {"tipo":"sposta","parametri":{"da":"X","a":"Y","dataDa":"YYYY-MM-DD","dataA":"YYYY-MM-DD"}} per spostare SOLO quelle 2 date, altri giorni invariati.
+- Lo sposta singolo muove SOLO quei 2 giorni: libera origine e sovrascrive destinazione. Non toccare altri giorni, non mandare modifiche extra, un solo comando sposta per risposta.
+- Se l'utente dice "ripristina come da impostazioni", usa SEMPRE solo {"tipo":"ripristina","parametri":{}}.
 - Se modifichi dieta/routine puoi usare sia "modifiche" sia singoli comandi "dieta"/"routine", non duplicarli.
 - "refresh" deve essere SEMPRE false: la pagina non si ricarica mai, le modifiche si applicano al click su Conferma.
 - Nomi giorni senza accenti, date sempre YYYY-MM-DD.
@@ -466,10 +477,12 @@ export async function chatWithMistral(message, context) {
     }
 
     // Comando /ho mangiato pizza OPPURE "ho mangiato una pizza"
+    // NOTA 2026-09-05: solo passato prossimo + no domande, anti falsi positivi
+    const isQuestionMeal = /\?\s*$/.test(message) || /^(cosa|che|dove|quando|come|quale|quanto)\b/i.test(message.trim())
     const mealMatch = message.match(/^\/(ho\s*mangiato|ate|meal)\s+(.+)$/i)
-    const naturalMealMatch = message.match(/(?:ho\s+mangiato|ho\s+mangiato\s+|ho\s+mangiato\s+oggi|mangio|mangiato|ho\s+mangiato|ho\s+mangiato\s+oggi)(?:\s+oggi\s+)?(?:\s+|:|-)?\s*(.+)/i)
-    
-    if (mealMatch || naturalMealMatch) {
+    const naturalMealMatch = !isQuestionMeal ? message.match(/ho\s+mangiato(?:\s+oggi)?\s*(?:\:|\-)?\s*(.+)/i) : null
+
+    if (mealMatch || (naturalMealMatch && naturalMealMatch[1] && naturalMealMatch[1].trim().length > 2)) {
         const description = mealMatch ? mealMatch[2] : naturalMealMatch[1]
         
         // NON salvare direttamente - restituisci solo il comando da confermare
@@ -488,10 +501,13 @@ export async function chatWithMistral(message, context) {
     }
 
     // Comando /ho fatto yoga 30 min OPPURE "ho fatto yoga oggi"
+    // NOTA 2026-09-05: solo "ho fatto X" con X lungo, no domande/dolori, anti falsi positivi
+    const isQuestionWorkout = /\?\s*$/.test(message) || /^(cosa|che|dove|quando|come|quale|quanto)\b/i.test(message.trim())
     const workoutMatch = message.match(/^\/(ho\s*fatto|did|workout)\s+(.+)$/i)
-    const naturalWorkoutMatch = message.match(/(?:ho\s+fatto|ho\s+fatto\s+|ho\s+fatto\s+oggi|fatto|allenato|ho\s+fatto|ho\s+fatto\s+oggi)(?:\s+oggi\s+)?(?:\s+|:|-)?\s*(.+)/i)
-    
-    if (workoutMatch || naturalWorkoutMatch) {
+    const naturalWorkoutMatch = !isQuestionWorkout ? message.match(/ho\s+fatto(?:\s+oggi)?\s*(?:\:|\-)?\s*(.+)/i) : null
+    const workoutDescOk = (d) => d && d.trim().length > 2 && !/^(male|male al|male alla|male allo|un sogno|colazione|paura)\b/i.test(d.trim())
+
+    if (workoutMatch || (naturalWorkoutMatch && workoutDescOk(naturalWorkoutMatch[1]))) {
         const description = workoutMatch ? workoutMatch[2] : naturalWorkoutMatch[1]
         
         // NON salvare direttamente - restituisci solo il comando da confermare
@@ -527,25 +543,32 @@ export async function chatWithMistral(message, context) {
         }
     }
 
-    // Comando /piano rientro
+    // Comando /piano rientro - solo con verbo d'azione, anti falsi positivi
     const returnMatch = message.match(/^\/(piano\s*rientro|return\s*plan|rientro)$/i)
-    const naturalReturnMatch = message.match(/(?:piano\s+di\s+rientro|rientro|piano\s+rientro|voglio\s+rientrare)/i)
-    
+    const naturalReturnMatch = message.match(/(genera|crea|fammi|voglio|vorrei|prepara).*piano.*rientro|voglio\s+rientrare/i)
+
     if (returnMatch || naturalReturnMatch) {
+        let activities = []
         try {
-            const activities = JSON.parse(localStorage.getItem('palestra_vacation_activities') || '[]')
-            const doneWorkouts = activities.filter(a => a.type === 'workout' && a.done).length
-            const cheatMeals = activities.filter(a => a.isCheatMeal).length
-            
-            // NON salvare direttamente - restituisci solo il comando da confermare
+            activities = JSON.parse(localStorage.getItem('palestra_vacation_activities') || '[]')
+            if (!Array.isArray(activities)) activities = []
+        } catch {
+            activities = []
+        }
+        try {
+            const doneWorkouts = activities.filter((a) => a.type === 'workout' && a.done).length
+            const cheatMeals = activities.filter((a) => a.isCheatMeal).length
+
+            // NOTA 2026-09-05: passa data reale, non context annidato
+            const pianoData = context?.data || null
             return {
                 risposta: `Vuoi che generi un piano di rientro basato su ${doneWorkouts} attivita eseguite e ${cheatMeals} sgarri?`,
                 modifiche: {},
-                consigli: ["Il piano di rientro verra generato dopo la conferma"],
+                consigli: ['Il piano di rientro verra generato dopo la conferma'],
                 comandi: [
                     {
-                        tipo: "rientro",
-                        parametri: { context: { data: context } }
+                        tipo: 'rientro',
+                        parametri: { context: { data: pianoData } }
                     }
                 ],
                 refresh: false
@@ -558,6 +581,82 @@ export async function chatWithMistral(message, context) {
                 comandi: [],
                 refresh: false
             }
+        }
+    }
+
+    // Comando ripristina allenamenti come da impostazioni
+    if (/^\/(ripristina)/i.test(message) || /ripristina.*allenamenti.*impostazioni|ripristina.*come.*da.*impostazioni/i.test(message)) {
+        return {
+            risposta: 'Vuoi ripristinare gli allenamenti come da impostazioni? I giorni in workoutDays torneranno attivi, gli altri diventeranno Giorno libero.',
+            modifiche: {},
+            consigli: ['Conferma per applicare senza ricaricare la pagina'],
+            comandi: [{ tipo: 'ripristina', parametri: {} }],
+            refresh: false
+        }
+    }
+
+    // Comando sposta allenamento: "/sposta Lunedi Martedi", "sposta da Lunedi a Martedi",
+    // "sposta allenamento di oggi a domenica prossima" (singola data, non tutta la settimana)
+    // NOTA 2026-09-05: gestione locale deterministica, poi Conferma senza reload
+    const normGiorno = (g) => {
+        const mappa = { lunedi: 'Lunedi', martedi: 'Martedi', mercoledi: 'Mercoledi', giovedi: 'Giovedi', venerdi: 'Venerdi', sabato: 'Sabato', domenica: 'Domenica' }
+        const k = String(g).normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+        return mappa[k] || g
+    }
+    const toDataStr = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+    const prossimaWeekday = (weekdayIdx) => {
+        const oggi = new Date()
+        const diff = (weekdayIdx - oggi.getDay() + 7) % 7 || 7
+        const d = new Date(oggi)
+        d.setDate(oggi.getDate() + diff)
+        return d
+    }
+    const risolviData = (txt) => {
+        const t = String(txt).toLowerCase().trim()
+        const oggi = new Date()
+        if (t === 'oggi') return toDataStr(oggi)
+        if (t === 'domani') {
+            const d = new Date(oggi)
+            d.setDate(oggi.getDate() + 1)
+            return toDataStr(d)
+        }
+        const mProssima = t.match(/(lunedi|martedi|mercoledi|giovedi|venerdi|sabato|domenica)\s+prossim[oa]/)
+        if (mProssima) {
+            const idx = ['domenica', 'lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato'].indexOf(mProssima[1])
+            return toDataStr(prossimaWeekday(idx))
+        }
+        const mData = t.match(/(\d{4})-(\d{2})-(\d{2})/)
+        if (mData) return `${mData[1]}-${mData[2]}-${mData[3]}`
+        return null
+    }
+    const spostaSlash = message.match(/^\/(sposta)\s+([A-Za-zàèéìòù]+)\s+(?:a|su|->|in\s+)?\s*([A-Za-zàèéìòù]+)\s*$/i)
+    const spostaNaturale = message.match(/sposta(?:re)?\s+(?:l['’]?allenamento\s+)?(?:di\s+oggi\s+|di\s+([A-Za-zàèéìòù\s]+?)\s+)?(?:da\s+)?([A-Za-zàèéìòù\s]+?)\s+(?:a|su|al|nel|in)\s+([A-Za-zàèéìòù\s]+?)\s*$/i)
+    if (spostaSlash || spostaNaturale) {
+        const rawDa = spostaSlash ? spostaSlash[2] : (spostaNaturale[2] || spostaNaturale[1] || '')
+        const rawA = spostaSlash ? spostaSlash[3] : spostaNaturale[3]
+        const daNorm = normGiorno(rawDa)
+        const aNorm = normGiorno(rawA)
+        // Se frasi con oggi/prossima/data specifica: sposta SOLO quelle 2 date
+        const isSingolo = /oggi|domani|prossim|prossimo|\d{4}-\d{2}-\d{2}/i.test(message)
+        if (isSingolo) {
+            const dataDa = risolviData(rawDa) || (/oggi/i.test(message) ? toDataStr(new Date()) : null)
+            const dataA = risolviData(rawA) || null
+            if (dataDa && dataA && dataDa !== dataA) {
+                return {
+                    risposta: `Vuoi spostare SOLO l'allenamento del ${dataDa} al ${dataA}? Gli altri giorni restano invariati.`,
+                    modifiche: {},
+                    consigli: ['Conferma per applicare senza ricaricare la pagina'],
+                    comandi: [{ tipo: 'sposta', parametri: { da: daNorm, a: aNorm, dataDa, dataA } }],
+                    refresh: false
+                }
+            }
+        }
+        return {
+            risposta: `Vuoi spostare l'allenamento da ${daNorm} a ${aNorm}? ${daNorm} diventera Giorno libero e ${aNorm} verra sovrascritto.`,
+            modifiche: {},
+            consigli: ['Conferma per applicare senza ricaricare la pagina'],
+            comandi: [{ tipo: 'sposta', parametri: { da: daNorm, a: aNorm } }],
+            refresh: false
         }
     }
 

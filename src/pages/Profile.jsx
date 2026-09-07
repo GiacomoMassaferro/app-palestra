@@ -10,6 +10,7 @@ export default function Profile() {
         nome: '',
         cognome: '',
         email: '',
+        sesso: '',
         annoNascita: '',
         altezza: '',
         peso: ''
@@ -18,13 +19,14 @@ export default function Profile() {
     const [success, setSuccess] = useState(null)
     const [loading, setLoading] = useState(false)
 
-    // Carica i dati utente attuali
+    // Carica i dati utente attuali (incluso sesso per coerenza con Login/bot)
     useEffect(() => {
         if (user) {
             setFormData({
                 nome: user.nome || '',
                 cognome: user.cognome || '',
                 email: user.email || '',
+                sesso: user.sesso || '',
                 annoNascita: user.annoNascita || '',
                 altezza: user.altezza || '',
                 peso: user.peso || ''
@@ -84,6 +86,7 @@ export default function Profile() {
                 nome: formData.nome.trim(),
                 cognome: formData.cognome.trim(),
                 email: formData.email.trim().toLowerCase(),
+                sesso: formData.sesso || user?.sesso || '',
                 annoNascita: formData.annoNascita,
                 eta: new Date().getFullYear() - formData.annoNascita,
                 altezza: formData.altezza,
@@ -225,7 +228,24 @@ export default function Profile() {
                                     </p>
                                     
                                     <div className="row g-3">
-                                        <div className="col-md-4">
+                                        <div className="col-md-3">
+                                            <label htmlFor="sesso" className="form-label">
+                                                <i className="bi bi-gender-ambiguous me-1 text-success"></i> Sesso *
+                                            </label>
+                                            <select
+                                                className="form-select"
+                                                id="sesso"
+                                                name="sesso"
+                                                value={formData.sesso}
+                                                onChange={handleChange}
+                                                required
+                                            >
+                                                <option value="">Seleziona...</option>
+                                                <option value="Uomo">Uomo</option>
+                                                <option value="Donna">Donna</option>
+                                            </select>
+                                        </div>
+                                        <div className="col-md-3">
                                             <label htmlFor="annoNascita" className="form-label">
                                                 <i className="bi bi-calendar me-1 text-success"></i> Anno di Nascita *
                                             </label>
@@ -242,7 +262,7 @@ export default function Profile() {
                                                 required
                                             />
                                         </div>
-                                        <div className="col-md-4">
+                                        <div className="col-md-3">
                                             <label htmlFor="altezza" className="form-label">
                                                 <i className="bi bi-rulers me-1 text-success"></i> Altezza (cm) *
                                             </label>
@@ -259,7 +279,7 @@ export default function Profile() {
                                                 required
                                             />
                                         </div>
-                                        <div className="col-md-4">
+                                        <div className="col-md-3">
                                             <label htmlFor="peso" className="form-label">
                                                 <i className="bi bi-weight me-1 text-success"></i> Peso (kg) *
                                             </label>

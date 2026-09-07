@@ -532,3 +532,37 @@ src/
 - Richiesta: togliere immagini pasto, dieta visibile tutti i giorni al click
 - Fix: rimosse icone/emoji pasto da calendario e dettaglio, fallback dieta a primo piano disponibile + orariPasti
 - File toccati: `src/pages/DayDetails.jsx`, `src/pages/Home.jsx`
+
+## 2026-09-05 (mini-test app)
+- Test statico flussi: avvio, login, calendario, dettaglio giorno, impostazioni, chat, ferie
+- Verifica: crash, chiavi localStorage, mismatch giorni, date UTC, refresh, errori console
+- File toccati: nessuno, solo report (fix successivi se approvati)
+
+## 2026-09-05 (fix-all mini-test, API da .env)
+- Chiave `VITE_MISTRAL_API_KEY` presente in `.env`, chat la usa gia via `import.meta.env`
+- Fix 1: `safeParse` con try ovunque (DayDetails, Home, Vacations, Settings, mistral)
+- Fix 2: piano rientro salvato mostrato in Vacations/Home + eventi `palestra_data_updated`
+- Fix 3: regex chat ancorate anti falsi positivi, Profile con sesso, guard `date` in DayDetails
+- File toccati: `src/pages/DayDetails.jsx`, `src/pages/Home.jsx`, `src/pages/Vacations.jsx`, `src/pages/Settings.jsx`, `src/pages/Profile.jsx`, `src/services/mistral.js`, `src/components/ChatPopup.jsx`
+
+## 2026-09-05 (sposta allenamento)
+- Sintomo: sposta giorno non libera vecchio giorno ne sovrascrive nuovo, icone restano
+- Fix: nuovo comando `sposta` {da, a} che muove routine+calendario, mette Giorno libero al mittente, aggiorna workoutDays
+- File toccati: `src/services/comandi.js`, `src/services/mistral.js`, `src/services/ISTRUZIONI.md`, `src/components/ChatPopup.jsx`
+
+## 2026-09-05 (sposta solo 1)
+- Sintomo: sposta muove tutti i giorni invece di 1 solo
+- Causa: AI manda `sposta` + `modifiche` con intera settimana, router eseguiva entrambi
+- Fix: se c'e `sposta` esegui solo primo sposta e ignora `modifiche`, prompt vieta riscritture extra
+- File toccati: `src/services/comandiRouter.js`, `src/services/comandi.js`, `src/services/mistral.js`
+
+## 2026-09-05 (ripristina allenamenti)
+- Sintomo: "ripristina come da impostazioni" fallisce, router prendeva solo primo sposta e scartava resto
+- Fix: nuovo comando `ripristina` che ricostruisce routine da workoutDays, router ignora modifiche solo per singolo sposta isolato
+- File toccati: `src/services/comandi.js`, `src/services/comandiRouter.js`, `src/services/mistral.js`, `src/services/ISTRUZIONI.md`
+
+## 2026-09-05 (sposta singola data)
+- Sintomo: "sposta oggi a domenica prossima" spostava tutti i Lunedi, non solo il 7
+- Causa: modello settimanale per nome giorno, nessuno override per data specifica
+- Fix: `eccezioni` per YYYY-MM-DD in suggestions, sposta singola crea Giorno libero il 7 e workout il 13
+- File toccati: `src/services/comandi.js`, `src/services/mistral.js`, `src/pages/Home.jsx`, `src/pages/DayDetails.jsx`

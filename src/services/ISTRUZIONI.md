@@ -277,6 +277,45 @@ Questo file contiene le istruzioni per il chatbot su come utilizzare i comandi d
 
 ---
 
+### 8. Sposta Allenamento
+**Descrizione:** Sposta allenamento da un giorno a un altro. Libera l'origine come Giorno libero (niente icone) e sovrascrive la destinazione anche se era libera. Aggiorna anche workoutDays.
+
+**Formato comando:**
+```json
+{
+  "tipo": "sposta",
+  "parametri": {
+    "da": "Lunedi",
+    "a": "Martedi"
+  }
+}
+```
+
+**Esempio:**
+```json
+{
+  "risposta": "Sposto allenamento da Lunedi a Martedi",
+  "modifiche": {},
+  "consigli": [],
+  "comandi": [{"tipo": "sposta", "parametri": {"da": "Lunedi", "a": "Martedi"}}],
+  "refresh": false
+}
+```
+
+**Regola:** per "sposta" usa SEMPRE solo questo comando, mai singoli `routine`.
+
+---
+
+### 9. Ripristina Allenamenti
+**Descrizione:** Ricostruisce routine da workoutDays nelle impostazioni. Giorni attivi tornano Allenamento, altri diventano Giorno libero.
+
+**Formato comando:**
+```json
+{"tipo": "ripristina", "parametri": {}}
+```
+
+---
+
 ## Formato della Risposta Completa
 
 Ogni risposta del chatbot DEVE contenere i seguenti campi:

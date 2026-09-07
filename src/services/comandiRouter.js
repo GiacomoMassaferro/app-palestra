@@ -50,8 +50,26 @@ export function routeResponse(aiResponse, _context = null) {
 
     // 1. Gestione dei comandi (se presenti)
     // NOTA 2026-09-05: nessun refresh pagina, solo applicazione dati
+    // NOTA 2026-09-05: solo sposta singolo isolato ignora modifiche, ripristina/multipli eseguono tutto
+    const normalizzaTipo = (t) => String(t || '').toLowerCase().replace(/[_\-\s/]/g, '')
+    const isSpostaCmd = (c) => {
+        const tipo = typeof c === 'string' ? c.replace(/^\//, '').split(/\s+/)[0] : c?.tipo
+        return ['sposta', 'spostaallenamento', 'spostaroutine'].includes(normalizzaTipo(tipo))
+    }
+    const isRipristinaCmd = (c) => {
+        const tipo = typeof c === 'string' ? c.replace(/^\//, '').split(/\s+/)[0] : c?.tipo
+        return ['ripristina', 'ripristinaallenamenti'].includes(normalizzaTipo(tipo))
+    }
+    const comandiList = Array.isArray(aiResponse.comandi) ? aiResponse.comandi : []
+    const spostaCount = comandiList.filter(isSpostaCmd).length
+    const haRipristina = comandiList.some(isRipristinaCmd)
+    // Solo se UN solo sposta e nient'altro: ignora modifiche fluff dell'AI
+    const spostaSingoloIsolato = spostaCount === 1 && comandiList.length === 1 && !haRipristina
     if (aiResponse.comandi && Array.isArray(aiResponse.comandi) && aiResponse.comandi.length > 0) {
-        const risultatoComandi = eseguiComandi(aiResponse.comandi)
+        const comandiDaEseguire = spostaSingoloIsolato
+            ? [aiResponse.comandi.find(isSpostaCmd)]
+            : aiResponse.comandi
+        const risultatoComandi = eseguiComandi(comandiDaEseguire)
 
         risultati.push({
             tipo: 'comandi',
@@ -73,7 +91,8 @@ export function routeResponse(aiResponse, _context = null) {
 
     // 2. Gestione delle modifiche (se presenti)
     // NOTA 2026-09-05: nessun refresh pagina, solo applicazione dati
-    if (aiResponse.modifiche && typeof aiResponse.modifiche === 'object' && Object.keys(aiResponse.modifiche).length > 0) {
+    // NOTA 2026-09-05: ignora modifiche solo per sposta singolo isolato
+    if (!spostaSingoloIsolato && aiResponse.modifiche && typeof aiResponse.modifiche === 'object' && Object.keys(aiResponse.modifiche).length > 0) {
         const risultatoModifiche = applicaModifiche(aiResponse.modifiche)
 
         risultati.push({

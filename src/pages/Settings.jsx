@@ -207,14 +207,18 @@ SOLO JSON valido, senza spiegazioni o markdown.`
         }))
     }
 
-    // Carica dati al montaggio
+    // Carica dati al montaggio (parse sicuro)
     useEffect(() => {
         const savedData = localStorage.getItem('palestra_data')
         const savedDietaFile = localStorage.getItem('palestra_dieta_file')
         const savedSchedaFile = localStorage.getItem('palestra_scheda_file')
-        
+
         if (savedData) {
-            setFormData(JSON.parse(savedData))
+            try {
+                setFormData(JSON.parse(savedData))
+            } catch {
+                // dati corrotti: mantieni form vuoto
+            }
         }
         if (savedDietaFile) {
             try {
@@ -271,7 +275,9 @@ SOLO JSON valido, senza spiegazioni o markdown.`
             if (schedaFile) {
                 salvaFile('palestra_scheda_file', schedaFile)
             }
-            
+
+            window.dispatchEvent(new Event('palestra_data_updated'))
+
             setSuccess('Configurazione e file salvati con successo!')
             
             setTimeout(() => {

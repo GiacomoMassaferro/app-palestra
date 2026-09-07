@@ -49,19 +49,18 @@ export function routeResponse(aiResponse, _context = null) {
     }
 
     // 1. Gestione dei comandi (se presenti)
+    // NOTA 2026-09-05: nessun refresh pagina, solo applicazione dati
     if (aiResponse.comandi && Array.isArray(aiResponse.comandi) && aiResponse.comandi.length > 0) {
         const risultatoComandi = eseguiComandi(aiResponse.comandi)
-        
+
         risultati.push({
             tipo: 'comandi',
             successo: risultatoComandi.successo,
             messaggio: risultatoComandi.messaggio,
             dati: risultatoComandi.dati
         })
-        
-        if (risultatoComandi.refresh) {
-            necessitaRefresh = true
-        }
+
+        // Volutamente ignorato: risultatoComandi.refresh non deve mai ricaricare la pagina
         
         if (!risultatoComandi.successo) {
             tuttiSuccesso = false
@@ -73,19 +72,18 @@ export function routeResponse(aiResponse, _context = null) {
     }
 
     // 2. Gestione delle modifiche (se presenti)
+    // NOTA 2026-09-05: nessun refresh pagina, solo applicazione dati
     if (aiResponse.modifiche && typeof aiResponse.modifiche === 'object' && Object.keys(aiResponse.modifiche).length > 0) {
         const risultatoModifiche = applicaModifiche(aiResponse.modifiche)
-        
+
         risultati.push({
             tipo: 'modifiche',
             successo: risultatoModifiche.successo,
             messaggio: risultatoModifiche.messaggio,
             dati: risultatoModifiche.dati
         })
-        
-        if (risultatoModifiche.refresh) {
-            necessitaRefresh = true
-        }
+
+        // Volutamente ignorato: risultatoModifiche.refresh non deve mai ricaricare la pagina
         
         if (!risultatoModifiche.successo) {
             tuttiSuccesso = false
@@ -97,12 +95,13 @@ export function routeResponse(aiResponse, _context = null) {
     }
 
     // 3. Se non ci sono comandi ne' modifiche, consideralo come una semplice risposta
+    // NOTA 2026-09-05: necessitaRefresh sempre false, mai reload pagina
     if (aiResponse.comandi === undefined && aiResponse.modifiche === undefined) {
         return {
             successo: true,
             messaggi: [aiResponse.risposta || 'Risposta ricevuta'],
             dati: aiResponse,
-            necessitaRefresh: aiResponse.refresh || false
+            necessitaRefresh: false
         }
     }
 

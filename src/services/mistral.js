@@ -1,56 +1,50 @@
 const MISTRAL_API_URL = 'https://api.mistral.ai/v1/chat/completions'
 
 /**
- * Funzione per pulire completamente il contenuto LLM:
- * - Rimuove TUTTA la formattazione markdown (**, _, *, ecc.)
- * - Rimuove code blocks
- * - Rimuove caratteri di controllo
- * - Fissa JSON troncato
- * - Sostituisce caratteri speciali italiani
+ * Data locale YYYY-MM-DD senza shift UTC (fix 2026-09-05)
+ */
+function dataLocaleMistral(d = new Date()) {
+    const y = d.getFullYear()
+    const m = String(d.getMonth() + 1).padStart(2, '0')
+    const giorno = String(d.getDate()).padStart(2, '0')
+    return `${y}-${m}-${giorno}`
+}
+
+/**
+ * Funzione per pulire il contenuto LLM senza distruggere il JSON:
+ * - NOTA 2026-09-05: estrae JSON da code-block invece di cancellarlo
+ * - Preserva accenti italiani e newline/tab
+ * - Rimuove solo caratteri di controllo pericolosi
  */
 function cleanJsonString(str) {
     if (!str || typeof str !== 'string') {
         return ''
     }
-    
-    return str
-        // 1. Rimuovi TUTTI i code blocks markdown (inclusi quelli nested)
-        .replace(/```[\s\S]*?```/g, '')
-        .trim()
 
-        // 2. Rimuovi formattazione markdown INLINE
-        .replace(/\*\*(.*?)\*\*/g, '$1')      // **grassetto** -> testo
-        .replace(/\*(.*?)\*/g, '$1')          // *corsivo* -> testo
-        .replace(/_(.*?)_/g, '$1')             // _corsivo_ -> testo
-        .replace(/~~(.*?)~~/g, '$1')           // ~~barrato~~ -> testo
-        .replace(/`(.*?)`/g, '$1')             // `code` -> testo
+    let base = str.trim()
 
-        // 3. Rimuovi caratteri di controllo
-        // eslint-disable-next-line no-control-regex
-        .replace(/[\x00-\x1F\x7F-\x9F]/g, '')
+    // 1. Se c'e' un code-block, estrai il contenuto interno invece di cancellarlo
+    const codeBlockMatch = base.match(/```(?:json)?\s*([\s\S]*?)```/i)
+    if (codeBlockMatch && codeBlockMatch[1] && codeBlockMatch[1].trim().startsWith('{')) {
+        base = codeBlockMatch[1].trim()
+    }
 
-        // 4. Rimuovi BOM
+    return base
+        // 2. Rimuovi BOM
         .replace(/\uFEFF/g, '')
 
-        // 5. Fissa virgolette smart
+        // 3. Fissa virgolette smart (preservano JSON valido)
         .replace(/[\u201C\u201D]/g, '"')
         .replace(/[\u2018\u2019]/g, "'")
 
-        // 6. Rimuovi spazi non-breaking
+        // 4. Rimuovi spazi non-breaking
         .replace(/\u00A0/g, ' ')
-        // 7. Sostituisci caratteri speciali italiani con versioni ASCII
-        .replace(/[\u00E0\u00E1\u00E2\u00E4\u00E5]/g, 'a')
-        .replace(/[\u00C0\u00C1\u00C2\u00C4\u00C5]/g, 'A')
-        .replace(/[\u00E8\u00E9\u00EA\u00EB]/g, 'e')
-        .replace(/[\u00C8\u00C9\u00CA\u00CB]/g, 'E')
-        .replace(/[\u00EC\u00ED\u00EE\u00EF]/g, 'i')
-        .replace(/[\u00CC\u00CD\u00CE\u00CF]/g, 'I')
-        .replace(/[\u00F2\u00F3\u00F4\u00F6\u00F8]/g, 'o')
-        .replace(/[\u00D2\u00D3\u00D4\u00D6\u00D8]/g, 'O')
-        .replace(/[\u00F9\u00FA\u00FC\u00FD]/g, 'u')
-        .replace(/[\u00D9\u00DA\u00DC\u00DD]/g, 'U')
-        .replace(/[\u00F1\u00D1]/g, 'n')
-        .replace(/[\u00C7\u00E7]/g, 'c')
+
+        // 5. Rimuovi solo caratteri di controllo pericolosi, preserva \n \r \t
+        // eslint-disable-next-line no-control-regex
+        .replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F-\x9F]/g, '')
+        .trim()
+        // NOTA: accenti italiani preservati volutamente, JSON e UTF-8 li supportano
 }
 
 /**
@@ -71,12 +65,14 @@ function safeJsonParse(str, fallback = null) {
         }
 
         // Verifica che inizi con {
+        // NOTA 2026-09-05: match greedy per JSON nested (dieta/routine)
         if (!cleaned.trim().startsWith('{')) {
-            // Tentativo di trovare un oggetto JSON nella stringa
-            const jsonMatch = cleaned.match(/\{[\s\S]*?\}/)
-            if (jsonMatch) {
+            // Tentativo di trovare un oggetto JSON nella stringa (primo { ... ultimo })
+            const startIdx = cleaned.indexOf('{')
+            const endIdx = cleaned.lastIndexOf('}')
+            if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
                 try {
-                    const parsed = JSON.parse(cleanJsonString(jsonMatch[0]))
+                    const parsed = JSON.parse(cleanJsonString(cleaned.slice(startIdx, endIdx + 1)))
                     // Assicurati che sia un oggetto
                     if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                         return parsed
@@ -104,11 +100,12 @@ function safeJsonParse(str, fallback = null) {
         console.warn('[JSON Parser] Errore:', e.message)
         console.warn('[JSON Parser] Contenuto:', str.substring(0, 500))
 
-        // Tentativo di recupero: estrai il primo oggetto JSON valido
-        const jsonMatch = str.match(/\{[\s\S]*?\}/)
-        if (jsonMatch) {
+        // Tentativo di recupero: estrai dal primo { all'ultimo } (greedy per nested)
+        const startIdx = str.indexOf('{')
+        const endIdx = str.lastIndexOf('}')
+        if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
             try {
-                const parsed = JSON.parse(cleanJsonString(jsonMatch[0]))
+                const parsed = JSON.parse(cleanJsonString(str.slice(startIdx, endIdx + 1)))
                 if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
                     return parsed
                 }
@@ -138,15 +135,15 @@ Il tuo ruolo è SOLO quello di:
 3. Adattare i piani esistenti alle nuove situazioni
 4. Fornire consigli generali su allenamento e alimentazione
 
-IMPORTANTE: Per modificare il calendario, usa UNICAMENTE i seguenti comandi:
-- ferie: {startDate, endDate}
-- pasto/mangiato: {description, date?, calories?}
-- attivita: {description, date?, type?}
-- fatto: {description, date?, type?}
-- rientro/aggiorna_piano: {context?}
-- dieta: {giorno, pasti}
-- routine: {giorno, dati}
+IMPORTANTE: Per modificare il calendario, usa UNICAMENTE i seguenti comandi (valori esatti di "tipo"):
+- ferie: {startDate: YYYY-MM-DD, endDate: YYYY-MM-DD}
+- pasto: {description, date?, calories?} (alias: mangiato)
+- attivita: {description, date?, type?} (alias: fatto)
+- rientro: {context?} (alias: piano_rientro, aggiorna_piano)
+- dieta: {giorno: Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato|Domenica, pasti}
+- routine: {giorno: Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato|Domenica, dati}
 - modifiche: {modifiche}
+NOTA: mai usare slash nei tipi (es. mai "pasto/mangiato"), "refresh" sempre false, mai reload pagina.
 
 Se l'utente chiede di modificare qualcosa, restituisci UNICAMENTE un oggetto JSON valido con:
 {
@@ -196,14 +193,21 @@ SOLO il JSON, nient'altro.
  * Crea il contesto utente con dati personali
  */
 function getUserContext() {
+    // NOTA 2026-09-05: fix precedenza operatori (eta vs annoNascita)
     try {
         const user = localStorage.getItem('palestra_user')
         if (user) {
             const userData = JSON.parse(user)
+            let eta = 0
+            if (userData.eta) {
+                eta = userData.eta
+            } else if (userData.annoNascita) {
+                eta = new Date().getFullYear() - userData.annoNascita
+            }
             return {
                 nome: userData.nome || '',
                 cognome: userData.cognome || '',
-                eta: userData.eta || userData.annoNascita ? new Date().getFullYear() - userData.annoNascita : 0,
+                eta,
                 altezza: userData.altezza || 0,
                 peso: userData.peso || 0,
                 sesso: userData.sesso || 'non specificato'
@@ -315,38 +319,48 @@ export function loadSuggestions() {
 const CHAT_PROMPT_TEMPLATE = `
 Sei un assistente AI esperto in fitness e nutrizione.
 
-Dati utente: {userInfo}
+Profilo utente (da Login): {userInfo}
 
-Piano corrente: {context}
+Impostazioni profilo (da Impostazioni, usa SEMPRE questi valori):
+- Obiettivo: {obiettivo}
+- Livello: {livello}
+- Preferenze alimentari: {preferenzeAlimentari}
+- Giorni allenamento: {workoutDays}
+- Durata allenamento: {durataAllenamento} minuti
+- Orari pasti: {orariPasti}
 
-File caricati dall'utente:
+Piano corrente JSON: {context}
+
+File caricati dall'utente (fonte primaria per dieta/scheda):
 - File Dieta: {dietaFile}
 - File Scheda: {schedaFile}
 
 IMPORTANTE:
-- L'utente ha caricato file con dieta e scheda di allenamento.
-- Se dietaFile e schedaFile contengono dati JSON, DEVI usare questi dati per rispondere alle domande.
-- Se dietaFile o schedaFile contengono "File binario" o "CONTENUTO BINARIO", l'utente ha caricato un file non JSON.
-  In questo caso, spiega all'utente che devi interpretare il file e generare una struttura adatta.
-- Se l'utente chiede "cosa devo mangiare oggi?", rispondi basandoti sul file dieta.
-- Se l'utente chiede "che allenamento devo fare oggi?", rispondi basandoti sul file scheda.
+- Usa PRIMA i file dieta/scheda se presenti, poi le impostazioni profilo, poi il piano corrente.
+- Se dietaFile e schedaFile contengono JSON, DEVI usarli per "cosa mangio oggi?" e "che allenamento faccio oggi?".
+- Se dietaFile o schedaFile dicono "contenuto non leggibile" o "solo anteprima", NON inventare il contenuto: dillo all'utente e chiedi di incollare il testo o usare Impostazioni.
 - NON generare piani da zero. Adatta solo i piani esistenti.
 - Fornisci SOLO suggerimenti, modifiche momentanee e adattamenti.
-- Se l'utente chiede consigli generali, forniscili basandoti sui suoi dati personali (eta, altezza, peso).
+- Consigli generali sempre personalizzati su eta, sesso, altezza, peso, obiettivo e livello.
 
 L'utente ti chiede: "{message}"
 
-COMANDI DISPONIBILI:
-- ferie: {startDate, endDate}
-- pasto/mangiato: {description, date?, calories?}
-- attivita: {description, date?, type?}
-- fatto: {description, date?, type?}
-- rientro/aggiorna_piano: {context?}
-- dieta: {giorno, pasti}
-- routine: {giorno, dati}
-- modifiche: {modifiche}
+COMANDI DISPONIBILI (usa ESATTAMENTE questi valori in "tipo", mai con slash o spazi):
+- ferie: {startDate: YYYY-MM-DD, endDate: YYYY-MM-DD}
+- pasto: {description, date?, calories?} (alias validi: mangiato)
+- attivita: {description, date?, type?} (alias validi: fatto)
+- rientro: {context?} (alias validi: piano_rientro, aggiorna_piano)
+- dieta: {giorno: Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato|Domenica, pasti: {...}}
+- routine: {giorno: Lunedi|Martedi|Mercoledi|Giovedi|Venerdi|Sabato|Domenica, dati: {...}}
+- modifiche: {modifiche: {dieta: {...}, routine: {...}}}
 
-DEVI restituire UNICAMENTE un oggetto JSON valido con questa struttura:
+REGOLE:
+- Mai usare "pasto/mangiato" o "rientro/aggiorna_piano" come tipo, sono due alias separati.
+- Se modifichi dieta/routine puoi usare sia "modifiche" sia singoli comandi "dieta"/"routine", non duplicarli.
+- "refresh" deve essere SEMPRE false: la pagina non si ricarica mai, le modifiche si applicano al click su Conferma.
+- Nomi giorni senza accenti, date sempre YYYY-MM-DD.
+
+DEVI restituire UNICAMENTE un oggetto JSON valido con questa struttura, senza markdown ne testo extra:
 {
   "risposta": "string",
   "modifiche": {},
@@ -354,14 +368,6 @@ DEVI restituire UNICAMENTE un oggetto JSON valido con questa struttura:
   "comandi": [{"tipo": "nomeComando", "parametri": {}}],
   "refresh": false
 }
-
-Analizza la richiesta e fornisci suggerimenti in formato JSON:
-{
-  "risposta": "testo risposta",
-  "modifiche": {"dieta": {}, "routine": {}},
-  "consigli": ["consiglio1"]
-}
-IMPORTANTE: Restituisci SOLO JSON valido, SENZA formattazione markdown (**, _, *, ecc.) o testo aggiuntivo.
 `
 
 /**
@@ -474,7 +480,7 @@ export async function chatWithMistral(message, context) {
             comandi: [
                 {
                     tipo: "pasto",
-                    parametri: { description: description.trim(), date: new Date().toISOString().split('T')[0] }
+                    parametri: { description: description.trim(), date: dataLocaleMistral(new Date()) }
                 }
             ],
             refresh: false
@@ -496,7 +502,7 @@ export async function chatWithMistral(message, context) {
             comandi: [
                 {
                     tipo: "attivita",
-                    parametri: { description: description.trim(), date: new Date().toISOString().split('T')[0], type: 'workout' }
+                    parametri: { description: description.trim(), date: dataLocaleMistral(new Date()), type: 'workout' }
                 }
             ],
             refresh: false
@@ -556,45 +562,74 @@ export async function chatWithMistral(message, context) {
     }
 
     // Chat normale
+    // NOTA 2026-09-05: profilo+impostazioni espliciti + file senza doppio encoding ne crash
     const userInfo = getUserInfoString()
-    
-    // Estrai dietaFile e schedaFile dal contesto
-    // Se sono file binari (iniziano con [FILE:), estrarrli per l'AI
-    let dietaFileContent = 'nessun file dieta caricato'
-    let schedaFileContent = 'nessun file scheda caricato'
-    
-    if (context?.dietaFile) {
-        if (typeof context.dietaFile === 'string' && context.dietaFile.startsWith('[FILE:')) {
-            // File binario - estrai tipo e nome
-            const fileMatch = context.dietaFile.match(/^\[FILE:([^:]+):([^\]]+)\]:(.*)$/)
-            if (fileMatch) {
-                dietaFileContent = `File binario: tipo=${fileMatch[1]}, nome=${fileMatch[2]}, contenuto="[CONTENUTO BINARIO - ${fileMatch[1].split('/')[1].toUpperCase()}]"`
-            } else {
-                dietaFileContent = `File caricato: ${context.dietaFile.substring(0, 200)}...`
+    const impostazioni = context?.data || {}
+    const obiettivo = impostazioni.obiettivo || 'non specificato'
+    const livello = impostazioni.livello || 'non specificato'
+    const preferenzeAlimentari = impostazioni.preferenzeAlimentari || 'non specificate'
+    const workoutDays = Array.isArray(impostazioni.workoutDays) && impostazioni.workoutDays.length > 0 ? impostazioni.workoutDays.join(', ') : 'non specificati'
+    const durataAllenamento = impostazioni.durataAllenamento || 'non specificata'
+    const orariPasti = impostazioni.orariPasti ? JSON.stringify(impostazioni.orariPasti).slice(0, 2000) : 'non specificati'
+
+    const formattaFilePerAI = (rawFile, tipoFile) => {
+        if (!rawFile) return `nessun file ${tipoFile} caricato`
+        // Oggetto gia parsato: stringify diretto, niente doppio encoding
+        if (typeof rawFile === 'object') {
+            try {
+                return JSON.stringify(rawFile).slice(0, 6000)
+            } catch {
+                return `file ${tipoFile} non leggibile`
             }
-        } else {
-            dietaFileContent = JSON.stringify(context.dietaFile)
         }
-    }
-    
-    if (context?.schedaFile) {
-        if (typeof context.schedaFile === 'string' && context.schedaFile.startsWith('[FILE:')) {
-            // File binario - estrai tipo e nome
-            const fileMatch = context.schedaFile.match(/^\[FILE:([^:]+):([^\]]+)\]:(.*)$/)
-            if (fileMatch) {
-                schedaFileContent = `File binario: tipo=${fileMatch[1]}, nome=${fileMatch[2]}, contenuto="[CONTENUTO BINARIO - ${fileMatch[1].split('/')[1].toUpperCase()}]"`
-            } else {
-                schedaFileContent = `File caricato: ${context.schedaFile.substring(0, 200)}...`
+        if (typeof rawFile === 'string') {
+            // Binario [FILE:mime:nome]:dataURL -> manda anteprima sicura, mai tutto il base64
+            if (rawFile.startsWith('[FILE:')) {
+                const fileMatch = rawFile.match(/^\[FILE:([^:]*):([^\]]+)\]:(.*)$/)
+                if (fileMatch) {
+                    const mime = fileMatch[1] || 'sconosciuto'
+                    const nome = fileMatch[2] || 'sconosciuto'
+                    const contenuto = fileMatch[3] || ''
+                    const estensione = mime.includes('/') ? mime.split('/')[1].toUpperCase() : mime.toUpperCase()
+                    // Se dataURL testuale, prova a includere un estratto leggibile
+                    let anteprima = ''
+                    if (contenuto.startsWith('data:text') || contenuto.length < 5000) {
+                        anteprima = contenuto.slice(0, 2000)
+                    } else {
+                        anteprima = contenuto.slice(0, 500) + '... [troncato per dimensioni]'
+                    }
+                    return `File binario ${tipoFile}: tipo=${mime}, nome=${nome}, formato=${estensione}, contenuto non leggibile direttamente dall'AI. Anteprima: ${anteprima}. Chiedi all'utente di incollare il testo se serve il dettaglio.`
+                }
+                return `File ${tipoFile} caricato ma non interpretabile: ${rawFile.slice(0, 500)}`
             }
-        } else {
-            schedaFileContent = JSON.stringify(context.schedaFile)
+            // Stringa che contiene gia JSON: evita doppio encoding
+            const trimmed = rawFile.trim()
+            if ((trimmed.startsWith('{') && trimmed.endsWith('}')) || (trimmed.startsWith('[') && trimmed.endsWith(']'))) {
+                try {
+                    JSON.parse(trimmed)
+                    return trimmed.slice(0, 6000)
+                } catch {
+                    // non JSON valido, prosegui sotto
+                }
+            }
+            return rawFile.slice(0, 6000)
         }
+        return `file ${tipoFile} non leggibile`
     }
-    
+
+    const dietaFileContent = formattaFilePerAI(context?.dietaFile, 'dieta')
+    const schedaFileContent = formattaFilePerAI(context?.schedaFile, 'scheda')
+
     const prompt = CHAT_PROMPT_TEMPLATE
         .replace('{message}', message)
-        .replace('{context}', ctxStr)
+        .replace('{context}', ctxStr.slice(0, 8000))
         .replace('{userInfo}', userInfo)
+        .replace('{obiettivo}', String(obiettivo))
+        .replace('{livello}', String(livello))
+        .replace('{preferenzeAlimentari}', String(preferenzeAlimentari))
+        .replace('{workoutDays}', String(workoutDays))
+        .replace('{durataAllenamento}', String(durataAllenamento))
+        .replace('{orariPasti}', String(orariPasti))
         .replace('{dietaFile}', dietaFileContent)
         .replace('{schedaFile}', schedaFileContent)
 

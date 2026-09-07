@@ -17,9 +17,11 @@ Questo file contiene le istruzioni per il chatbot su come utilizzare i comandi d
       "parametri": {}
     }
   ],
-  "refresh": true/false
+  "refresh": false
 }
 ```
+
+**NOTA 2026-09-05: `refresh` sempre `false`. Il bottone Conferma applica le modifiche senza ricaricare la pagina.**
 
 ## Comandi Disponibili
 
@@ -285,7 +287,7 @@ Ogni risposta del chatbot DEVE contenere i seguenti campi:
 | `modifiche` | object | Modifiche da applicare a dieta e routine | Sì (può essere vuoto) |
 | `consigli` | array | Lista di consigli per l'utente | Sì (può essere vuoto) |
 | `comandi` | array | Lista di comandi da eseguire | Sì (può essere vuoto) |
-| `refresh` | boolean | Indica se è necessario ricaricare la pagina | Sì |
+| `refresh` | boolean | Sempre `false`, mai ricaricare la pagina | Sì |
 
 ---
 
@@ -310,7 +312,7 @@ Ogni risposta del chatbot DEVE contenere i seguenti campi:
       }
     }
   ],
-  "refresh": true
+  "refresh": false
 }
 ```
 
@@ -361,7 +363,7 @@ Ogni risposta del chatbot DEVE contenere i seguenti campi:
       }
     }
   ],
-  "refresh": true
+  "refresh": false
 }
 ```
 

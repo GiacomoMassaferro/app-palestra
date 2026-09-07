@@ -3,6 +3,13 @@ import { useState } from 'react'
 export default function VacationTracker({ vacationData, vacationActivities = [], onActivityToggle, onMealAdd }) {
     const [newMeal, setNewMeal] = useState({ description: '', calories: '' })
     const [expandedDates, setExpandedDates] = useState({})
+    // Data locale YYYY-MM-DD senza shift UTC (fix 2026-09-05)
+    const dataLocale = (d = new Date()) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const giorno = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${giorno}`
+    }
     
     // Trova tutti i giorni di ferie nel mese corrente
     const getCurrentMonthVacationDays = () => {
@@ -15,27 +22,27 @@ export default function VacationTracker({ vacationData, vacationActivities = [],
         const vacationDays = []
         
         vacationData.vacationPeriods.forEach(period => {
-            const start = new Date(period.startDate)
-            const end = new Date(period.endDate)
-            
+            const start = new Date(period.startDate + 'T12:00:00')
+            const end = new Date(period.endDate + 'T12:00:00')
+
             // Verifica se il periodo interseca il mese corrente
             if (start.getFullYear() === currentYear && start.getMonth() === currentMonth) {
                 // Periodo inizia questo mese
                 for (let d = new Date(start); d <= end && d.getMonth() === currentMonth; d.setDate(d.getDate() + 1)) {
-                    vacationDays.push(d.toISOString().split('T')[0])
+                    vacationDays.push(dataLocale(d))
                 }
             } else if (end.getFullYear() === currentYear && end.getMonth() === currentMonth) {
                 // Periodo finisce questo mese
                 const firstDayOfMonth = new Date(currentYear, currentMonth, 1)
                 for (let d = new Date(firstDayOfMonth); d <= end; d.setDate(d.getDate() + 1)) {
-                    vacationDays.push(d.toISOString().split('T')[0])
+                    vacationDays.push(dataLocale(d))
                 }
             } else if (start.getFullYear() < currentYear || (start.getFullYear() === currentYear && start.getMonth() < currentMonth) &&
                        (end.getFullYear() > currentYear || (end.getFullYear() === currentYear && end.getMonth() > currentMonth))) {
                 // Periodo copre tutto il mese
                 const daysInMonth = new Date(currentYear, currentMonth + 1, 0).getDate()
                 for (let day = 1; day <= daysInMonth; day++) {
-                    vacationDays.push(new Date(currentYear, currentMonth, day).toISOString().split('T')[0])
+                    vacationDays.push(dataLocale(new Date(currentYear, currentMonth, day)))
                 }
             }
         })

@@ -12,53 +12,82 @@ export default function DayDetails() {
         const savedData = localStorage.getItem('palestra_data')
         const savedSuggestions = localStorage.getItem('palestra_suggestions')
         const savedVacation = localStorage.getItem('palestra_vacation')
-        
+
         const data = savedData ? JSON.parse(savedData) : null
         const suggestions = savedSuggestions ? JSON.parse(savedSuggestions) : null
         const vacationData = savedVacation ? JSON.parse(savedVacation) : null
-        
-        // Prova prima con il nome del giorno (es. Lunedi)
-        let workoutInfo = data?.workoutDetails?.[date]
-        let mealInfo = data?.mealDetails?.[date]
-        let calendarSuggestions = data?.calendario?.[date]?.suggerimenti || suggestions?.calendario?.[date]?.suggerimenti || []
-        
-        if (!workoutInfo && suggestions?.routine?.[date]) {
-            workoutInfo = suggestions.routine[date]
-        }
-        
-        if (!mealInfo && suggestions?.dieta?.[date]?.pasti) {
-            mealInfo = suggestions.dieta[date].pasti
-        }
-        
-        // Se non trova nulla con il nome del giorno, prova a convertirlo in formato data
-        // Es. se date è "Lunedi", prova a trovare il prossimo Lunedi
-        if (!workoutInfo && !mealInfo && calendarSuggestions.length === 0) {
-            const daysOfWeek = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato']
-            const dayIndex = daysOfWeek.findIndex(d => d === date)
-            
-            if (dayIndex !== -1) {
-                // Cerca nel suggestions usando il nome del giorno
-                workoutInfo = suggestions?.routine?.[date]
-                mealInfo = suggestions?.dieta?.[date]?.pasti
-                calendarSuggestions = suggestions?.calendario?.[date]?.suggerimenti || []
+
+        // Normalizza giorno senza accenti (Lunedi con accento -> Lunedi)
+        const normalizza = (g) => {
+            if (!g || typeof g !== 'string') return g
+            const mappa = {
+                lunedi: 'Lunedi', martedi: 'Martedi', mercoledi: 'Mercoledi', giovedi: 'Giovedi',
+                venerdi: 'Venerdi', sabato: 'Sabato', domenica: 'Domenica'
             }
+            const chiave = g.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+            return mappa[chiave] || g
         }
-        
-        // Verifica se è un giorno di ferie
+        const cercaPerGiorno = (contenitore, nomeGiorno) => {
+            if (!contenitore || !nomeGiorno) return null
+            return contenitore[nomeGiorno] || contenitore[normalizza(nomeGiorno)] || null
+        }
+
+        // Risolvi nome giorno: se date e YYYY-MM-DD converti in weekday, se e nome usalo diretto
+        const giorniCanonici = ['Domenica', 'Lunedi', 'Martedi', 'Mercoledi', 'Giovedi', 'Venerdi', 'Sabato']
+        let dayName = null
+        if (date && date.match(/^\d{4}-\d{2}-\d{2}$/)) {
+            const d = new Date(date + 'T12:00:00')
+            dayName = giorniCanonici[d.getDay()]
+        } else {
+            dayName = normalizza(date)
+        }
+
+        // Verifica se è un giorno di ferie (le ferie sovrascrivono tutto)
+        // NOTA 2026-09-05: confronto stringhe YYYY-MM-DD per evitare shift UTC
         const isVacationDay = vacationData?.vacationPeriods?.some(period => {
-            const periodStart = new Date(period.startDate)
-            const periodEnd = new Date(period.endDate)
-            // Se date è una data ISO (YYYY-MM-DD)
             if (date.match(/^\d{4}-\d{2}-\d{2}$/)) {
-                const dateObj = new Date(date)
-                return dateObj >= periodStart && dateObj <= periodEnd
+                return date >= period.startDate && date <= period.endDate
             }
             return false
         })
-        
+
         const vacationSuggestion = isVacationDay ? (vacationData?.vacationSuggestions || {})[date] : null
-        
-        setDayData({ workoutInfo, mealInfo, calendarSuggestions, isVacationDay, vacationSuggestion })
+
+        let workoutInfo = null
+        let mealInfo = null
+        let calendarSuggestions = []
+        let isFallbackDiet = false
+
+        if (!isVacationDay && dayName) {
+            // Routine da suggestions (prova con e senza accenti)
+            workoutInfo = cercaPerGiorno(suggestions?.routine, dayName) || cercaPerGiorno(suggestions?.routine, date)
+            // Se giorno in workoutDays ma senza scheda dettaglio, crea info minima per non mostrare Riposo
+            const workoutDays = data?.workoutDays || []
+            const isWorkoutDay = workoutDays.some((d) => d === dayName || normalizza(d) === normalizza(dayName))
+            if (!workoutInfo && isWorkoutDay) {
+                workoutInfo = { scheda: 'Allenamento', durata: data?.durataAllenamento || '', esercizi: [] }
+            }
+            // Dieta da suggestions
+            const dietaGiorno = cercaPerGiorno(suggestions?.dieta, dayName) || cercaPerGiorno(suggestions?.dieta, date)
+            if (dietaGiorno?.pasti) {
+                mealInfo = dietaGiorno.pasti
+            }
+            // Orari pasti da impostazioni come fallback (Settings salva orariPasti, non mealDetails)
+            if (!mealInfo && data?.orariPasti && Object.keys(data.orariPasti).length > 0) {
+                mealInfo = data.orariPasti
+            }
+            // NOTA 2026-09-05: dieta sempre visibile, fallback a primo piano disponibile
+            if (!mealInfo && suggestions?.dieta && Object.keys(suggestions.dieta).length > 0) {
+                const primoGiornoConPasti = Object.values(suggestions.dieta).find((d) => d?.pasti && Object.keys(d.pasti).length > 0)
+                if (primoGiornoConPasti?.pasti) {
+                    mealInfo = primoGiornoConPasti.pasti
+                    isFallbackDiet = true
+                }
+            }
+            calendarSuggestions = cercaPerGiorno(suggestions?.calendario, dayName)?.suggerimenti || cercaPerGiorno(suggestions?.calendario, date)?.suggerimenti || []
+        }
+
+        setDayData({ workoutInfo, mealInfo, calendarSuggestions, isVacationDay, vacationSuggestion, dayName, isFallbackDiet })
         setLoading(false)
     }, [date])
 
@@ -115,7 +144,44 @@ export default function DayDetails() {
                 </button>
             </div>
 
-            {/* Tab Navigation */}
+            {/* Ferie sovrascrivono tutto: solo simboli vacanza */}
+            {dayData.isVacationDay && (
+                <div className="alert alert-warning d-flex align-items-center gap-2 mb-4">
+                    <span className="fs-3">🏖️</span>
+                    <div>
+                        <strong>Giorno di ferie{dayData.dayName ? ` (${dayData.dayName})` : ''}</strong>
+                        <div className="small">Piano palestra e dieta sospesi. Vale solo il piano vacanza leggero.</div>
+                    </div>
+                </div>
+            )}
+            {dayData.isVacationDay && dayData.vacationSuggestion && (
+                <div className="card border-0 shadow-sm mb-4">
+                    <div className="card-body">
+                        <h5 className="mb-3">🏖️ Piano vacanza</h5>
+                        {dayData.vacationSuggestion.workout && (
+                            <div className="mb-3">
+                                <strong>Attivita leggera:</strong>
+                                <ul className="mb-1">
+                                    {(dayData.vacationSuggestion.workout.exercises || []).map((ex, idx) => (
+                                        <li key={idx}>{ex}</li>
+                                    ))}
+                                </ul>
+                                <div className="small text-muted">{dayData.vacationSuggestion.workout.tips}</div>
+                            </div>
+                        )}
+                        {dayData.vacationSuggestion.diet && (
+                            <div>
+                                <strong>Dieta flessibile:</strong>
+                                <div className="small">{dayData.vacationSuggestion.diet.tips}</div>
+                                <div className="small text-muted">Calorie base: {dayData.vacationSuggestion.diet.baseCalories || 1800} kcal</div>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Tab Navigation - nascosta in ferie, vale solo vacanza */}
+            {!dayData.isVacationDay && (
             <ul className="nav nav-tabs mb-4">
                 <li className="nav-item">
                     <button 
@@ -144,8 +210,10 @@ export default function DayDetails() {
                     </li>
                 )}
             </ul>
+            )}
 
-            {/* Tab Content */}
+            {/* Tab Content - nascosto in ferie */}
+            {!dayData.isVacationDay && (
             <div className="tab-content">
                 {/* Allenamento */}
                 {activeTab === 'allenamento' && (
@@ -219,9 +287,14 @@ export default function DayDetails() {
                     </div>
                 )}
 
-                {/* Dieta */}
+                {/* Dieta - sempre visibile, niente immagini pasto */}
                 {activeTab === 'dieta' && (
                     <div className="tab-pane fade show active">
+                        {dayData.isFallbackDiet && (
+                            <div className="alert alert-info mb-3">
+                                Piano base uguale tutti i giorni. Personalizzalo via chat o Impostazioni.
+                            </div>
+                        )}
                         {dayData.mealInfo && Object.keys(dayData.mealInfo).length > 0 ? (
                             <div className="row g-3">
                                 {/* Calorie e Grammi totali */}
@@ -231,7 +304,6 @@ export default function DayDetails() {
                                             <div className="row g-3">
                                                 <div className="col-6">
                                                     <div className="p-3 bg-light rounded">
-                                                        <i className="bi bi-fire text-danger fs-4 mb-2"></i>
                                                         <h4 className="mb-0">{totalCalories} kcal</h4>
                                                         <p className="text-muted small mb-0">
                                                             {totalCalories > 2500 ? 'Superi la media!' : totalCalories < 1800 ? 'Leggeri' : 'Bilanciato'}
@@ -240,7 +312,6 @@ export default function DayDetails() {
                                                 </div>
                                                 <div className="col-6">
                                                     <div className="p-3 bg-light rounded">
-                                                        <i className="bi bi-weight text-info fs-4 mb-2"></i>
                                                         <h4 className="mb-0">{totalGrammi}g</h4>
                                                         <p className="text-muted small mb-0">
                                                             {totalGrammi > 1500 ? 'Pasto abbondante!' : totalGrammi < 800 ? 'Leggero' : 'Perfetto'}
@@ -262,17 +333,14 @@ export default function DayDetails() {
                                     </div>
                                 </div>
 
-                                {/* Pasti */}
+                                {/* Pasti - NOTA 2026-09-05: niente immagini pasto, solo testo */}
                                 {Object.entries(dayData.mealInfo).map(([mealTime, details]) => (
                                     <div key={mealTime} className="col-md-6">
                                         <div className="card border-0 shadow-sm h-100">
                                             <div className="card-body">
-                                                <div className="d-flex align-items-center gap-2 mb-3">
-                                                    <i className="bi bi-alarm text-warning fs-4"></i>
-                                                    <div>
-                                                        <h5 className="mb-0">{mealTime}</h5>
-                                                        <p className="mb-0 text-muted">{details.ora || 'Non specificato'}</p>
-                                                    </div>
+                                                <div className="mb-3">
+                                                    <h5 className="mb-0">{mealTime}</h5>
+                                                    <p className="mb-0 text-muted">{details.ora || 'Non specificato'}</p>
                                                 </div>
                                                 <div className="mb-3">
                                                     <p className="mb-1"><strong>Cibo:</strong></p>
@@ -280,10 +348,10 @@ export default function DayDetails() {
                                                 </div>
                                                 <div className="d-flex justify-content-between align-items-center gap-2">
                                                     <span className="badge bg-info bg-opacity-10 text-info">
-                                                        <i className="bi bi-weight me-1"></i> {details.grammi || '?'}g
+                                                        {details.grammi || '?'}g
                                                     </span>
                                                     <span className="badge bg-danger bg-opacity-10 text-danger">
-                                                        <i className="bi bi-fire me-1"></i> {details.calorie || '?'} kcal
+                                                        {details.calorie || '?'} kcal
                                                     </span>
                                                 </div>
                                             </div>
@@ -335,6 +403,7 @@ export default function DayDetails() {
                     </div>
                 )}
             </div>
+            )}
         </div>
     )
 }

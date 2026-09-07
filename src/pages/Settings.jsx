@@ -257,13 +257,19 @@ SOLO JSON valido, senza spiegazioni o markdown.`
         try {
             // Salva configurazione base
             localStorage.setItem('palestra_data', JSON.stringify(formData))
-            
+
             // Salva file dieta e scheda se presenti
+            // NOTA 2026-09-05: stringify se oggetto per evitare "[object Object]"
+            const salvaFile = (chiave, valore) => {
+                if (!valore) return
+                const daSalvare = typeof valore === 'string' ? valore : JSON.stringify(valore)
+                localStorage.setItem(chiave, daSalvare)
+            }
             if (dietaFile) {
-                localStorage.setItem('palestra_dieta_file', dietaFile)
+                salvaFile('palestra_dieta_file', dietaFile)
             }
             if (schedaFile) {
-                localStorage.setItem('palestra_scheda_file', schedaFile)
+                salvaFile('palestra_scheda_file', schedaFile)
             }
             
             setSuccess('Configurazione e file salvati con successo!')

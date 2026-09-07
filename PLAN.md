@@ -431,6 +431,17 @@ src/
 
 ---
 
+### Milestone 12: Fix Audit Bot 2026-09-05 + Conferma senza refresh
+- [x] Conferma senza refresh: `refresh:false` ovunque, nessun `window.location.reload`, solo update localStorage + context
+- [x] Fix ChatPopup: nessuna esecuzione prima di Conferma per comandi `/...`, parsing solo lettura
+- [x] Fix ChatPopup: bottone Conferma visibile anche con soli `comandi` e `modifiche:{}` + anteprima comandi
+- [x] Fix system prompt: `cleanJsonString` estrae JSON da code-block invece di cancellarlo, preserva accenti italiani
+- [x] Fix system prompt: `safeJsonParse` con match greedy per JSON nested + rimozione doppio esempio in `CHAT_PROMPT_TEMPLATE`
+- [x] Allineare nomi comandi tra prompt, `ISTRUZIONI.md` e `comandi.js` (supporto slash + spazi)
+- [x] Fix minori: `getUserContext` precedenza operatori, date ferie normalizzate, merge `vacationSuggestions`, merge pasti per pasto
+
+---
+
 ## Note Finali
 
 ### Cosa e stato completato:
@@ -468,3 +479,56 @@ src/
    - Salvataggio su backend
    - Esportazione/importazione dati
    - Notifiche push
+
+---
+
+# Changelog Giornaliero
+
+## 2026-09-05
+- Audit system prompt bot (`src/services/mistral.js`: cleanJsonString, safeJsonParse, CHAT_PROMPT_TEMPLATE)
+- Audit routing risposte (`src/services/comandiRouter.js`, `src/components/ChatPopup.jsx`)
+- Audit istruzioni bot (`src/services/ISTRUZIONI.md` vs prompt reale)
+- Audit file comandi (`src/services/comandi.js`)
+- Fix richiesto: bottone Conferma senza `window.location.reload`, solo applicazione modifiche + update context
+- File toccati: `src/services/comandi.js`, `src/services/comandiRouter.js`, `src/components/ChatPopup.jsx`, `src/services/mistral.js`, `src/services/ISTRUZIONI.md`
+
+## 2026-09-05 (errore startTime in console)
+- Screenshot: `Uncaught TypeError: Cannot read properties of undefined (reading 'startTime')` in `et.reportAllChanges` su script `VM*`
+- Verifica: nessuna occorrenza `startTime` in `src/`, nessun `web-vitals` in `package.json`, stack solo in codice iniettato da Chrome DevTools
+- Diagnosi: bug noto esterno Chromium/DevTools `web-vitals reportAllChanges` su soft-navigation SPA, non codice app
+- File toccati: nessuno, solo verifica
+
+## 2026-09-05 (mostra modifiche subito + off-by-one ferie)
+- Screenshot 11:50: Conferma ferie 14-18 ok (`Tutti i 1 comandi eseguiti`), ma calendario giallo su 15-19 e resto fermo
+- Causa 1: `date.toISOString().split('T')[0]` con fuso CEST sposta mezzanotte locale al giorno prima in UTC
+- Causa 2: `Home.jsx` ricarica dati solo su mount/cambio mese, ignora evento `palestra_data_updated`
+- Fix: helper data locale `YYYY-MM-DD`, `Home.jsx` in ascolto evento per refresh immediato senza reload pagina
+- File toccati: `src/pages/Home.jsx`, `src/services/comandi.js`, `src/services/mistral.js`, `src/components/ChatPopup.jsx`
+
+## 2026-09-05 (verifica profilo+file nel system prompt)
+- Domanda utente: profilo e file caricati arrivano davvero al prompt?
+- Verifica: `mistral.js` CHAT_PROMPT_TEMPLATE, `getUserContext`, `ChatPopup.jsx` context, `Settings.jsx` chiavi localStorage
+- File toccati: nessuno, solo verifica e report
+
+## 2026-09-05 (uso corretto profilo+file)
+- ChatPopup: context fresco da localStorage a ogni invio, non solo al mount
+- mistral.js: prompt con campi espliciti profilo+impostazioni, file JSON senza doppio encoding, binari con anteprima troncata e guard mime
+- Settings.jsx: salvataggio file con stringify se oggetto, niente piu `[object Object]`
+- File toccati: `src/components/ChatPopup.jsx`, `src/services/mistral.js`, `src/pages/Settings.jsx`
+
+## 2026-09-05 (calendario non si aggiorna)
+- Sintomo: dopo Conferma il calendario resta fermo
+- Cause sospette: mismatch `Lunedi` vs `Lunedi con accento` tra comandi/AI e `Home.jsx`, listener evento incompleto
+- Fix: normalizzazione giorni senza accenti + refresh immediato Home via evento
+- File toccati: `src/pages/Home.jsx`, `src/services/comandi.js`, `src/components/ChatPopup.jsx`
+
+## 2026-09-05 (giorni riposo errati + grafica ferie)
+- Sintomo 1: click su giorno palestra mostra Riposo in DayDetails
+- Sintomo 2: giorni ferie mostrano anche icone palestra/pasti, devono mostrare solo vacanza
+- Fix: stessa normalizzazione giorni in DayDetails + ferie sovrascrivono workout/pasti in Home e DayDetails
+- File toccati: `src/pages/DayDetails.jsx`, `src/pages/Home.jsx`
+
+## 2026-09-05 (no immagini pasto + dieta sempre visibile)
+- Richiesta: togliere immagini pasto, dieta visibile tutti i giorni al click
+- Fix: rimosse icone/emoji pasto da calendario e dettaglio, fallback dieta a primo piano disponibile + orariPasti
+- File toccati: `src/pages/DayDetails.jsx`, `src/pages/Home.jsx`

@@ -11,6 +11,35 @@ export default function Home() {
     const [currentYear, setCurrentYear] = useState(new Date().getFullYear())
     const [vacationData, setVacationData] = useState(null)
     const [vacationActivities, setVacationActivities] = useState([])
+    const [dataVersion, setDataVersion] = useState(0)
+    // Data locale YYYY-MM-DD senza shift UTC (fix 2026-09-05: toISOString spostava ferie di 1 giorno)
+    const dataLocale = (d = new Date()) => {
+        const y = d.getFullYear()
+        const m = String(d.getMonth() + 1).padStart(2, '0')
+        const giorno = String(d.getDate()).padStart(2, '0')
+        return `${y}-${m}-${giorno}`
+    }
+    // Normalizza giorno senza accenti per matchare AI/comandi (Lunedi con accento -> Lunedi)
+    const normalizzaGiorno = (giorno) => {
+        if (!giorno || typeof giorno !== 'string') return giorno
+        const mappa = {
+            lunedi: 'Lunedi', martedi: 'Martedi', mercoledi: 'Mercoledi', giovedi: 'Giovedi',
+            venerdi: 'Venerdi', sabato: 'Sabato', domenica: 'Domenica'
+        }
+        const chiave = giorno.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().trim()
+        return mappa[chiave] || giorno
+    }
+    // Cerca dati giorno provando con accento, senza accento e normalizzato
+    const trovaDatiGiorno = (contenitore, dayName) => {
+        if (!contenitore || !dayName) return {}
+        return contenitore[dayName] || contenitore[normalizzaGiorno(dayName)] || {}
+    }
+    // Verifica workoutDays con normalizzazione (Settings salva senza accenti)
+    const includeWorkoutDay = (workoutDays, dayName) => {
+        if (!Array.isArray(workoutDays)) return false
+        const norm = normalizzaGiorno(dayName)
+        return workoutDays.some((d) => d === dayName || normalizzaGiorno(d) === norm)
+    }
 
     // Ottieni il nome del giorno corrente in italiano
     const getCurrentDayName = () => {
@@ -83,8 +112,8 @@ export default function Home() {
     // Verifica se una data è in un periodo di ferie
     const isVacationDate = (date, vacationData) => {
         if (!vacationData?.vacationPeriods) return false
-        
-        const dateStr = date.toISOString().split('T')[0]
+
+        const dateStr = dataLocale(date)
         
         for (const period of vacationData.vacationPeriods) {
             if (period.startDate && period.endDate && dateStr >= period.startDate && dateStr <= period.endDate) {
@@ -125,11 +154,14 @@ export default function Home() {
         for (let dayNum = 1; dayNum <= daysInMonth; dayNum++) {
             const date = new Date(year, month, dayNum)
             const dayName = daysOfWeek[date.getDay()]
-            const dateStr = date.toISOString().split('T')[0]
+            const y = date.getFullYear()
+            const m = String(date.getMonth() + 1).padStart(2, '0')
+            const g = String(date.getDate()).padStart(2, '0')
+            const dateStr = `${y}-${m}-${g}`
             
-            // Verifica se c'e' allenamento per questo giorno
-            const routine = palestraSuggestions?.routine?.[dayName] || {}
-            const hasWorkout = (palestraData?.workoutDays || []).includes(dayName) ||
+            // Verifica se c'e' allenamento per questo giorno (con normalizzazione accenti)
+            const routine = trovaDatiGiorno(palestraSuggestions?.routine, dayName)
+            const hasWorkout = includeWorkoutDay(palestraData?.workoutDays, dayName) ||
                               (Array.isArray(routine.esercizi) && routine.esercizi.length > 0)
             
             // Raccolgo i pasti per questo giorno
@@ -141,22 +173,26 @@ export default function Home() {
                     }
                 })
             }
-            if (palestraSuggestions?.dieta?.[dayName]?.pasti) {
-                Object.keys(palestraSuggestions.dieta[dayName].pasti || {}).forEach(mealTime => {
+            const dietaGiorno = trovaDatiGiorno(palestraSuggestions?.dieta, dayName)
+            if (dietaGiorno?.pasti) {
+                Object.keys(dietaGiorno.pasti || {}).forEach(mealTime => {
                     if (!meals.includes(mealTime)) {
                         meals.push(mealTime)
                     }
                 })
             }
             
-            const workoutName = routine.scheda || ''
-            
-            // Verifica se e' un giorno di ferie
+            // Verifica se e' un giorno di ferie: le ferie sovrascrivono tutto
             const isVacation = vacationData ? isVacationDate(date, vacationData) : false
-            
+
             // Verifica se ci sono suggerimenti specifici per le ferie per questo giorno
             const vacationSuggestion = vacationData?.vacationSuggestions?.[dateStr] || null
-            
+
+            // Se ferie, azzera palestra/pasti: mostra solo simboli vacanza
+            const finalHasWorkout = isVacation ? false : hasWorkout
+            const finalMeals = isVacation ? [] : meals
+            const finalWorkoutName = isVacation ? '' : (routine.scheda || '')
+
             monthDays.push({
                 number: dayNum,
                 date: date,
@@ -164,9 +200,9 @@ export default function Home() {
                 dayName: dayName,
                 isCurrentDay: isCurrentMonth && dayNum === currentDayOfMonth,
                 isCurrentMonth: true,
-                hasWorkout,
-                meals,
-                workoutName,
+                hasWorkout: finalHasWorkout,
+                meals: finalMeals,
+                workoutName: finalWorkoutName,
                 isVacation,
                 vacationSuggestion
             })
@@ -201,9 +237,9 @@ export default function Home() {
         const currentMinute = now.getMinutes()
         const currentTime = currentHour * 60 + currentMinute
 
-        // Verifica se oggi c'e' allenamento
-        const routineToday = palestraSuggestions?.routine?.[currentDayName] || {}
-        const hasWorkoutToday = (palestraData?.workoutDays || []).includes(currentDayName) ||
+        // Verifica se oggi c'e' allenamento (con normalizzazione accenti)
+        const routineToday = (palestraSuggestions?.routine?.[currentDayName] || palestraSuggestions?.routine?.[normalizzaGiorno(currentDayName)] || {})
+        const hasWorkoutToday = includeWorkoutDay(palestraData?.workoutDays, currentDayName) ||
                                 (Array.isArray(routineToday.esercizi) && routineToday.esercizi.length > 0)
 
         // Raccolgo tutti i pasti di oggi con orari
@@ -226,9 +262,10 @@ export default function Home() {
             })
         }
 
-        // Da suggestions
-        if (palestraSuggestions?.dieta?.[currentDayName]?.pasti) {
-            Object.entries(palestraSuggestions.dieta[currentDayName].pasti || {}).forEach(([mealName, mealData]) => {
+        // Da suggestions (con normalizzazione accenti)
+        const dietaToday = palestraSuggestions?.dieta?.[currentDayName] || palestraSuggestions?.dieta?.[normalizzaGiorno(currentDayName)]
+        if (dietaToday?.pasti) {
+            Object.entries(dietaToday.pasti || {}).forEach(([mealName, mealData]) => {
                 if (mealData && typeof mealData === 'object' && mealData.ora) {
                     const [hours, minutes] = String(mealData.ora).split(':').map(Number)
                     const mealTime = hours * 60 + minutes
@@ -274,8 +311,8 @@ export default function Home() {
 
         // Se non c'e' un pasto prossimo ma c'e' allenamento oggi
         if (hasWorkoutToday) {
-            const routine = palestraSuggestions?.routine?.[currentDayName] || {}
-            const calendario = palestraSuggestions?.calendario?.[currentDayName] || {}
+            const routine = palestraSuggestions?.routine?.[currentDayName] || palestraSuggestions?.routine?.[normalizzaGiorno(currentDayName)] || {}
+            const calendario = palestraSuggestions?.calendario?.[currentDayName] || palestraSuggestions?.calendario?.[normalizzaGiorno(currentDayName)] || {}
             return {
                 type: 'workout',
                 name: routine.scheda || 'Allenamento',
@@ -392,9 +429,22 @@ export default function Home() {
         const dayName = getCurrentDayName()
         const activity = calculateNextActivity(dayName, palestraData, palestraSuggestions)
         setNextActivity(activity)
-        
+
         setLoading(false)
-    }, [currentMonth, currentYear])
+    }, [currentMonth, currentYear, dataVersion])
+
+    // NOTA 2026-09-05: ricarica immediata dopo Conferma dal bot, senza reload pagina
+    useEffect(() => {
+        const onDataUpdated = () => {
+            setDataVersion((v) => v + 1)
+        }
+        window.addEventListener('palestra_data_updated', onDataUpdated)
+        window.addEventListener('storage', onDataUpdated)
+        return () => {
+            window.removeEventListener('palestra_data_updated', onDataUpdated)
+            window.removeEventListener('storage', onDataUpdated)
+        }
+    }, [])
 
     // Verifica se ci sono dati nel calendario
     const hasCalendarData = calendarDays.some(week => 
@@ -548,12 +598,7 @@ export default function Home() {
                                                     {!day.isVacation && day.hasWorkout && (
                                                         <small className="d-block" style={{ fontSize: '0.65rem' }}>🏋️</small>
                                                     )}
-                                                    {!day.isVacation && day.meals.length > 0 && !day.hasWorkout && (
-                                                        <small className="d-block" style={{ fontSize: '0.65rem' }}>🍽️</small>
-                                                    )}
-                                                    {!day.isVacation && day.hasWorkout && day.meals.length > 0 && (
-                                                        <small className="d-block" style={{ fontSize: '0.65rem' }}>🏋️🍽️</small>
-                                                    )}
+                                                    {/* NOTA 2026-09-05: immagini pasto rimosse, solo testo via tooltip */}
                                                 </div>
                                             ) : (
                                                 <div className="p-2" style={{ height: '60px' }}></div>

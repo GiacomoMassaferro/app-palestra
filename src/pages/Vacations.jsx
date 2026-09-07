@@ -102,11 +102,14 @@ export default function Vacations() {
             const newSuggestions = {}
             
             vacationData.vacationPeriods.forEach(period => {
-                const start = new Date(period.startDate)
-                const end = new Date(period.endDate)
-                
+                const start = new Date(period.startDate + 'T12:00:00')
+                const end = new Date(period.endDate + 'T12:00:00')
+
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-                    const dateStr = d.toISOString().split('T')[0]
+                    const y = d.getFullYear()
+                    const m = String(d.getMonth() + 1).padStart(2, '0')
+                    const g = String(d.getDate()).padStart(2, '0')
+                    const dateStr = `${y}-${m}-${g}`
                     newSuggestions[dateStr] = {
                         workout: {
                             type: 'light',

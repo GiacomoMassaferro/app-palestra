@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { chatWithMistral } from '../services/mistral'
-import { eseguiComando } from '../services/comandi'
 import { routeResponse } from '../services/comandiRouter'
 
 export default function ChatPopup() {
@@ -14,7 +13,8 @@ export default function ChatPopup() {
     // Carica i dati correnti dell'utente per il contesto
     const [context, setContext] = useState(null)
 
-    useEffect(() => {
+    // NOTA 2026-09-05: context sempre fresco da localStorage (profilo+impostazioni+file)
+    const loadFreshContext = () => {
         const safeParse = (value) => {
             if (!value) return null
             try {
@@ -29,8 +29,8 @@ export default function ChatPopup() {
         const savedUser = localStorage.getItem('palestra_user')
         const savedDietaFile = localStorage.getItem('palestra_dieta_file')
         const savedSchedaFile = localStorage.getItem('palestra_scheda_file')
-        
-        const currentContext = {
+
+        return {
             data: safeParse(savedData),
             suggestions: safeParse(savedSuggestions),
             user: safeParse(savedUser),
@@ -38,7 +38,10 @@ export default function ChatPopup() {
             dietaFile: savedDietaFile || null,
             schedaFile: savedSchedaFile || null
         }
-        setContext(currentContext)
+    }
+
+    useEffect(() => {
+        setContext(loadFreshContext())
     }, [])
 
     // Scroller automatico verso il basso quando i messaggi cambiano
@@ -66,25 +69,21 @@ export default function ChatPopup() {
             console.log(`[ChatPopup] Invio messaggio:`, userMessage)
             
             // Controlla se il messaggio e' un comando diretto (inizia con /)
-            // In questo caso, non chiamare l'API ma prepara la risposta con i comandi da confermare
+            // NOTA 2026-09-05: mai eseguire prima della conferma, solo anteprima
             if (userMessage.startsWith('/')) {
                 console.log(`[ChatPopup] Comando diretto rilevato: ${userMessage}`)
-                
-                // Esegue il comando solo per parsare e ottenere la struttura, NON per eseguirlo
+
                 const comandoTestuale = userMessage
-                const risultatoParsing = eseguiComando(comandoTestuale, {})
-                
-                console.log(`[ChatPopup] Risultato parsing comando:`, risultatoParsing)
-                
-                // Prepara la risposta del bot con il comando da confermare
-                // Non eseguiamo ancora il comando, l'utente deve confermare
+
+                // Nessuna chiamata a eseguiComando qui: l'esecuzione avviene
+                // solo in applyModifiche dopo il click su Conferma
                 const comandoDaConfermare = {
                     tipo: comandoTestuale,
                     parametri: {}
                 }
-                
+
                 const botMessage = {
-                    text: `Ho comprese la tua richiesta: ${comandoTestuale}. Vuoi che la esegua?`,
+                    text: `Ho compreso la tua richiesta: ${comandoTestuale}. Premi Conferma per eseguirla, senza ricaricare la pagina.`,
                     sender: 'bot',
                     timestamp: new Date().toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }),
                     modifiche: {},
@@ -92,14 +91,17 @@ export default function ChatPopup() {
                     comandi: [comandoDaConfermare],
                     refreshPage: false
                 }
-                
+
                 setMessages(prev => [...prev, botMessage])
                 setLoading(false)
                 return
             }
             
-            // Chiama l'API Mistral con il messaggio e il contesto
-            const response = await chatWithMistral(userMessage, context)
+            // NOTA 2026-09-05: ricarica profilo+impostazioni+file a ogni invio
+            const freshContext = loadFreshContext()
+            setContext(freshContext)
+            // Chiama l'API Mistral con il messaggio e il contesto fresco
+            const response = await chatWithMistral(userMessage, freshContext)
             
             console.log(`[ChatPopup] Risposta AI:`, response)
             
@@ -143,6 +145,10 @@ export default function ChatPopup() {
     }
 
     const togglePopup = () => {
+        // Ricarica profilo+file all'apertura cosi il prompt usa sempre dati correnti
+        if (!isOpen) {
+            setContext(loadFreshContext())
+        }
         setIsOpen(!isOpen)
     }
 
@@ -227,12 +233,23 @@ export default function ChatPopup() {
                 return msg
             }))
             
-            // Ricarica la pagina se necessario
-            if (risultato.necessitaRefresh) {
-                setTimeout(() => {
-                    window.location.reload()
-                }, 1000)
+            // NOTA 2026-09-05: mai reload pagina, solo applicazione modifiche
+            // Ricarica il contesto da localStorage cosi la chat resta aggiornata
+            // e avvisa le altre pagine senza refresh
+            try {
+                const freshSuggestions = localStorage.getItem('palestra_suggestions')
+                const freshVacation = localStorage.getItem('palestra_vacation')
+                const freshActivities = localStorage.getItem('palestra_vacation_activities')
+                setContext((prev) => ({
+                    ...prev,
+                    suggestions: freshSuggestions ? JSON.parse(freshSuggestions) : prev?.suggestions,
+                    vacation: freshVacation ? JSON.parse(freshVacation) : prev?.vacation,
+                    activities: freshActivities ? JSON.parse(freshActivities) : prev?.activities
+                }))
+            } catch {
+                // ignora errori di parsing, il contesto precedente resta valido
             }
+            window.dispatchEvent(new Event('palestra_data_updated'))
             
         } catch (err) {
             console.error('[applyModifiche] Errore critico:', err)
@@ -347,12 +364,23 @@ export default function ChatPopup() {
                                                 <p className="mb-1 small">{msg.text}</p>
                                             )}
                                             
-                                            {/* Mostra modifiche e consigli se e un messaggio del bot */}
-                                            {msg.sender === 'bot' && msg.modifiche && Object.keys(msg.modifiche || {}).length > 0 && (
+                                            {/* Mostra modifiche, comandi e consigli se e un messaggio del bot */}
+                                            {/* NOTA 2026-09-05: visibile anche con soli comandi, senza modifiche */}
+                                            {msg.sender === 'bot' && ((msg.modifiche && Object.keys(msg.modifiche || {}).length > 0) || (msg.comandi && Array.isArray(msg.comandi) && msg.comandi.length > 0)) && (
                                                 <div className="mt-1">
                                                     <div className="alert alert-info p-1 mb-2 small">
-                                                        <strong>📋 Anteprima modifiche:</strong> Queste modifiche verranno applicate al tuo calendario.
+                                                        <strong>📋 Anteprima modifiche:</strong> Queste modifiche verranno applicate senza ricaricare la pagina.
                                                     </div>
+                                                    {(!msg.modifiche || Object.keys(msg.modifiche || {}).length === 0) && msg.comandi && msg.comandi.length > 0 && (
+                                                        <div className="mb-1">
+                                                            <strong className="text-info small">⚙️ Comandi da eseguire:</strong>
+                                                            <ul className="ms-2 mb-0 ps-3">
+                                                                {msg.comandi.map((c, idx) => (
+                                                                    <li key={idx} className="small m-0 p-0">{typeof c === 'string' ? c : `${c.tipo || 'comando'}${c.parametri ? ` ${JSON.stringify(c.parametri)}` : ''}`}</li>
+                                                                ))}
+                                                            </ul>
+                                                        </div>
+                                                    )}
                                                     {msg.modifiche.dieta && Object.keys(msg.modifiche.dieta || {}).length > 0 && (
                                                         <div className="mb-1">
                                                             <strong className="text-success small">🍽️ Dieta:</strong>
